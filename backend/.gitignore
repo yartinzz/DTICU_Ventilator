@@ -1,5 +1,0 @@
-# .gitignore
-.env
-*.log
-__pycache__/
-*.pyc
