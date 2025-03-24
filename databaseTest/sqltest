@@ -1,0 +1,150 @@
+CREATE TABLE patient_records (
+  record_id INT AUTO_INCREMENT PRIMARY KEY,
+  patient_id INT NOT NULL,
+  record_type VARCHAR(50) NOT NULL,
+  summary_content TEXT DEFAULT NULL,
+  detail_content JSON NOT NULL,
+  department VARCHAR(255) DEFAULT NULL,
+  ward VARCHAR(255) DEFAULT NULL,
+  doctor_name VARCHAR(255) NOT NULL,
+  appendix_url TEXT DEFAULT NULL,
+  created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_patient_type_time (patient_id, record_type, created_time),
+  FOREIGN KEY (patient_id) REFERENCES patient_info(patient_id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
+CREATE TABLE IF NOT EXISTS patient_info (
+    patient_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    age INT NOT NULL,
+    gender VARCHAR(10) NOT NULL,
+    admission_date DATETIME NOT NULL,
+    notes TEXT
+)
+ALTER TABLE patient_info
+ADD COLUMN ethnicity VARCHAR(255) DEFAULT NULL,
+ADD COLUMN marital_status VARCHAR(50) DEFAULT NULL,
+ADD COLUMN birth_date DATE DEFAULT NULL,
+ADD COLUMN admission_count INT DEFAULT 0;
+
+
+
+INSERT INTO patient_info 
+  (name, age, gender, admission_date, notes, ethnicity, marital_status, birth_date, admission_count)
+VALUES
+  ('王伟', 34, '男', '2023-07-20 10:30:00', '高血压', '汉族', '已婚', '1989-05-12', 1),
+  ('李娜', 28, '女', '2023-07-21 09:15:00', '糖尿病', '汉族', '未婚', '1995-03-08', 2),
+  ('张敏', 45, '女', '2023-06-15 14:00:00', '心脏病', '汉族', '已婚', '1978-08-22', 3),
+  ('刘强', 52, '男', '2023-05-10 11:20:00', '脑中风', '汉族', '已婚', '1971-11-05', 4),
+  ('陈静', 38, '女', '2023-07-01 15:45:00', '哮喘', '汉族', '已婚', '1985-07-30', 1),
+  ('杨洋', 30, '男', '2023-06-30 08:00:00', '骨折', '汉族', '未婚', '1993-04-16', 1),
+  ('赵敏', 27, '女', '2023-07-10 12:30:00', '贫血', '汉族', '未婚', '1996-01-20', 2),
+  ('黄磊', 60, '男', '2023-04-25 09:00:00', '糖尿病', '汉族', '丧偶', '1963-02-14', 5),
+  ('吴芳', 50, '女', '2023-05-05 10:00:00', '高血压', '汉族', '已婚', '1973-12-05', 3),
+  ('周杰', 40, '男', '2023-07-12 14:15:00', '胃溃疡', '汉族', '未婚', '1983-09-17', 2),
+  ('吴敏', 33, '女', '2023-06-22 16:00:00', '风湿性关节炎', '汉族', '已婚', '1990-11-11', 1),
+  ('郑涛', 55, '男', '2023-05-18 08:45:00', '前列腺增生', '汉族', '已婚', '1968-06-30', 4),
+  ('马丽', 29, '女', '2023-07-08 11:30:00', '月经不调', '汉族', '未婚', '1994-10-09', 1),
+  ('冯刚', 47, '男', '2023-06-05 10:20:00', '高血压', '汉族', '已婚', '1976-03-25', 2),
+  ('孙丽', 42, '女', '2023-06-28 09:50:00', '慢性支气管炎', '汉族', '已婚', '1981-07-07', 3);
+
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(3, 'diagnosis', '高血压确诊', 
+'{"患者自述":"间断性头痛3个月，近期加重伴随耳鸣","临床诊断":"原发性高血压2级","结论":"高血压确诊","建议":"低盐饮食，每日监测血压，服用苯磺酸氨氯地平"}',
+'心血管内科', '3楼A区', '张伟'),
+(3, 'diagnosis', '糖尿病筛查', 
+'{"患者自述":"多饮多食伴体重下降","临床诊断":"2型糖尿病","结论":"糖尿病确诊","建议":"二甲双胍0.5g bid，每周血糖监测"}',
+'内分泌科', '3楼A区', '李明');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(3, 'imaging', '胸部CT异常', 
+'{"检查类型":"CT平扫","检查部位":"胸部","影像所见":"双肺下叶磨玻璃样影，纵隔淋巴结肿大","结论":"肺炎可能性大，建议抗炎后复查"}',
+'放射科', NULL, '王芳'),
+(3, 'imaging', '膝关节MRI', 
+'{"检查类型":"MRI增强","检查部位":"右膝关节","影像所见":"半月板III度损伤，关节腔积液","结论":"半月板撕裂需手术"}',
+'骨科', NULL, '陈建国');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(3, 'surgery', '膝关节置换术', 
+'{"手术名称":"右膝关节置换术","手术日期":"2023-08-15","过程描述":"全麻下行关节清理+假体植入","手术结果":"假体位置良好，出血50ml","术后医嘱":"预防性使用抗生素，术后3天开始康复训练"}',
+'骨科', '5楼手术中心', '赵卫国'),
+(3, 'surgery', '腹腔镜胆囊切除', 
+'{"手术名称":"腹腔镜胆囊切除术","手术日期":"2023-03-10","过程描述":"三孔法顺利切除化脓胆囊","手术结果":"手术顺利，留置引流管","术后医嘱":"低脂饮食，引流管护理"}',
+'普外科', '5楼手术中心', '周涛');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(3, 'nursing', '术后生命体征', 
+'{"护理时间":"2023-08-15 14:00","护理项目":"术后监护","执行护士":"王雪","具体内容":"T 36.8℃，P 88次/分，R 18次/分，BP 130/85mmHg，切口干燥无渗血"}',
+'骨科', '5楼手术中心', '赵卫国'),
+(3, 'nursing', '血糖监测', 
+'{"护理时间":"2023-08-16 07:00","护理项目":"血糖检测","执行护士":"李晓萌","具体内容":"空腹血糖8.2mmol/L，注射胰岛素4单位，指导糖尿病饮食"}',
+'内分泌科', '3楼A区', '李明');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(3, 'infusion', '术后补液治疗', 
+'{"药品名称":"0.9%氯化钠","剂量":"500ml","输液时间":"2023-08-15 15:00-17:00","输液速度":"60滴/分","护士观察":"穿刺部位无红肿，患者无不适"}',
+'骨科', '5楼手术中心', '赵卫国'),
+(3, 'infusion', '抗生素治疗', 
+'{"药品名称":"头孢曲松钠","剂量":"2g","输液时间":"2023-08-16 09:00-09:40","输液速度":"40滴/分","护士观察":"皮试阴性，输液过程顺利"}',
+'骨科', '5楼手术中心', '赵卫国');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(3, 'medication', '降压药处方', 
+'{"药品名称":"苯磺酸氨氯地平","剂量":"5mg","用法":"每日一次口服","用药时间":"长期","注意事项":"监测血压，警惕下肢水肿"}',
+'心血管内科', '3楼A区', '张伟'),
+(3, 'medication', '降糖药使用', 
+'{"药品名称":"二甲双胍缓释片","剂量":"0.5g","用法":"每日两次餐中服","用药时间":"2023-08-16起","注意事项":"注意胃肠道反应，禁酒"}',
+'内分泌科', '3楼A区', '李明');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(4, 'diagnosis', '急性胃肠炎', 
+'{"患者自述":"呕吐伴腹泻1天，体温38.2℃","临床诊断":"急性胃肠炎","结论":"细菌性感染","建议":"禁食6小时，左氧氟沙星抗感染治疗"}',
+'消化内科', '2楼B区', '孙丽华'),
+(4, 'diagnosis', '肋骨骨折', 
+'{"患者自述":"车祸后右侧胸痛2小时","临床诊断":"右侧第5-6肋骨骨折","结论":"闭合性骨折","建议":"胸带固定，止痛治疗"}',
+'急诊科', '2楼B区', '刘强');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(4, 'imaging', '腹部超声', 
+'{"检查类型":"超声","检查部位":"肝胆胰脾","影像所见":"胆囊壁毛糙，肝内胆管无扩张","结论":"慢性胆囊炎"}',
+'超声科', NULL, '吴敏'),
+(4, 'imaging', '胸部X光', 
+'{"检查类型":"X线","检查部位":"胸部正侧位","影像所见":"右侧第5-6肋骨皮质不连续","结论":"肋骨骨折确诊"}',
+'放射科', NULL, '王芳');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(4, 'surgery', '骨折内固定术', 
+'{"手术名称":"肋骨切开复位内固定","手术日期":"2023-07-20","过程描述":"全麻下置入钛合金接骨板","手术结果":"复位良好，出血100ml","术后医嘱":"呼吸训练，预防肺炎"}',
+'胸外科', '5楼手术中心', '郑建国'),
+(4, 'surgery', '阑尾切除术', 
+'{"手术名称":"腹腔镜阑尾切除","手术日期":"2022-12-05","过程描述":"急诊手术切除化脓阑尾","手术结果":"手术成功，留置引流","术后医嘱":"流质饮食，伤口换药"}',
+'普外科', '5楼手术中心', '周涛');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(4, 'nursing', '胸带护理', 
+'{"护理时间":"2023-07-21 08:30","护理项目":"胸带调整","执行护士":"张婷婷","具体内容":"调整胸带松紧度，指导咳嗽时按压固定"}',
+'胸外科', '4楼C区', '郑建国'),
+(4, 'nursing', '疼痛评估', 
+'{"护理时间":"2023-07-20 22:00","护理项目":"疼痛管理","执行护士":"李晓萌","具体内容":"NRS评分4分，给予曲马多50mg肌注"}',
+'胸外科', '4楼C区', '郑建国');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(4, 'infusion', '补液治疗', 
+'{"药品名称":"葡萄糖氯化钠","剂量":"1000ml","输液时间":"2023-07-20 15:30-19:30","输液速度":"80滴/分","护士观察":"尿量恢复至50ml/h"}',
+'急诊科', '2楼B区', '刘强'),
+(4, 'infusion', '营养支持', 
+'{"药品名称":"复方氨基酸","剂量":"500ml","输液时间":"2023-07-21 10:00-13:00","输液速度":"30滴/分","护士观察":"无过敏反应，穿刺点无渗出"}',
+'胸外科', '4楼C区', '郑建国');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(4, 'medication', '抗生素治疗', 
+'{"药品名称":"左氧氟沙星","剂量":"0.5g","用法":"每日一次静滴","用药时间":"2023-07-20-07-25","注意事项":"避光输注，监测肾功能"}',
+'消化内科', '2楼B区', '孙丽华'),
+(4, 'medication', '止痛药处方', 
+'{"药品名称":"布洛芬缓释胶囊","剂量":"300mg","用法":"每12小时一次","用药时间":"疼痛时服用","注意事项":"餐后服用，警惕消化道出血"}',
+'胸外科', '4楼C区', '郑建国');
+  
