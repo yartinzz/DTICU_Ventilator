@@ -1,4 +1,11 @@
-# app/binlog/listener.py
+#!/usr/bin/env python
+"""
+Author: yadian zhao
+Institution: Canterbury University
+Description: This module listens to MySQL binlog events (specifically for pressure_flow_params and ecg_params tables),
+             processes incoming data rows, updates the data cache, triggers data sending events, and monitors active parameters.
+"""
+
 import time
 from threading import Thread, Lock
 
@@ -11,25 +18,30 @@ from config.logger import logger
 from config.settings import settings
 from app.core.events import notifier
 
-# 活跃参数字典及其锁，结构：{ (patient_id, param_type): {"active": bool, "last_update": timestamp} }
+# Dictionary to store active parameters and their last update timestamp.
+# Structure: {(patient_id, param_type): {"active": bool, "last_update": timestamp}}
 active_params = {}
+# Lock for thread-safe access to active_params dictionary.
 active_params_lock = Lock()
 
-# 定义不活动阈值（单位：秒），例如 60 秒未更新则标记为 inactive
+# Define the inactivity threshold (in seconds). For example, if no update is received within 20 seconds, mark as inactive.
 INACTIVITY_THRESHOLD = 20
 
 
 def print_active_parameters():
-    """打印当前处于活跃状态的参数，按照病人ID分行"""
+    """
+    Print the currently active parameters, grouped by patient ID.
+    If there are no active parameters, log that no active devices are found.
+    """
     grouped = {}
     with active_params_lock:
+        # Group active parameters by patient_id.
         for (patient_id, param_type), info in active_params.items():
             if info["active"]:
                 grouped.setdefault(patient_id, []).append(param_type)
     if not grouped:
         logger.info("Active device: No active parameters")
     else:
-        # 假设我们只打印曾经更新过的病人ID
         for patient_id in sorted(grouped.keys()):
             params = grouped[patient_id]
             if params:
@@ -37,26 +49,48 @@ def print_active_parameters():
             else:
                 logger.info(f"Active device: Patient {patient_id} --- None")
 
+
 def monitor_active_params():
+    """
+    Continuously monitor the active parameters.
+    If a parameter hasn't been updated within the INACTIVITY_THRESHOLD, mark it as inactive.
+    Periodically prints the list of active parameters and logs subscription events.
+    """
     while True:
         current_time = time.time()
         with active_params_lock:
+            # Check each active parameter and update its status if needed.
             for key, info in list(active_params.items()):
                 if info["active"] and (current_time - info["last_update"] > INACTIVITY_THRESHOLD):
-                    logger.info(f"time: {current_time}, last_update: {info['last_update']}")    
+                    logger.info(f"time: {current_time}, last_update: {info['last_update']}")
                     active_params[key]["active"] = False
                     logger.info(f"Active device: Patient {key[0]} --- {key[1]} is now inactive")
         print_active_parameters()
+        # Log subscription events (using notifier).
         notifier._log_subscriptions()
+        # Sleep for the threshold duration before next check.
         time.sleep(INACTIVITY_THRESHOLD)
 
+
 def start_monitoring_active_params():
-    """启动活跃参数监控线程，并返回线程实例"""
+    """
+    Start the monitoring thread for active parameters.
+    
+    Returns:
+        Thread: The monitoring thread instance running in daemon mode.
+    """
     monitor_thread = Thread(target=monitor_active_params, daemon=True)
     monitor_thread.start()
     return monitor_thread
 
+
 def binlog_listener():
+    """
+    Listen to the MySQL binary log events and process WriteRowsEvent events.
+    Depending on the table, decode the data, update the data cache, trigger send_data events,
+    and update the active parameters status.
+    """
+    # Initialize the binlog stream reader with the connection settings and filters.
     stream = BinLogStreamReader(
         connection_settings={
             "host": settings.DB_HOST,
@@ -68,14 +102,16 @@ def binlog_listener():
         only_events=[WriteRowsEvent],
         blocking=True,
         resume_stream=True,
-        # 监听 pressure_flow_params 和 ecg_params 两张表
-        only_tables=["pressure_flow_params", "ecg_params"] 
+        # Listen to pressure_flow_params and ecg_params tables.
+        only_tables=["pressure_flow_params", "ecg_params"]
     )
     
+    # Iterate over events in the binlog stream.
     for event in stream:
         if isinstance(event, WriteRowsEvent):
             for row in event.rows:
                 try:
+                    # Extract the row values.
                     values = row["values"]
                     patient_id = values["patient_id"]
                     collection_time = values["collection_time"]
@@ -84,7 +120,7 @@ def binlog_listener():
                         param_type = "pressure_flow"
                         raw_params = values["parameters"]
                         
-                        # 字节字符串转换为普通字符串
+                        # Convert byte strings to normal strings.
                         decoded_params = {
                             key.decode('utf-8'): {
                                 sub_key.decode('utf-8'): sub_val 
@@ -95,9 +131,11 @@ def binlog_listener():
                             for key, value in raw_params.items()
                         }
                         
+                        # Convert the pressure and flow values from strings to floats.
                         pressure_values = [float(v) for v in decoded_params["pressure"]["values"]]
                         flow_values = [float(v) for v in decoded_params["flow"]["values"]]
                         
+                        # Update the data cache with the pressure and flow data.
                         data_cache.update_data(
                             patient_id=patient_id,
                             param_type=param_type,
@@ -114,6 +152,7 @@ def binlog_listener():
                             timestamp=collection_time.timestamp()
                         )
                         
+                        # Add an event to the send_data_manager.
                         send_data_manager.add_event(
                             patient_id=patient_id,
                             param_type=param_type,
@@ -124,6 +163,7 @@ def binlog_listener():
                         param_type = "ECG"
                         raw_params = values["parameters"]
                         
+                        # Convert byte strings to normal strings.
                         decoded_params = {
                             key.decode('utf-8'): {
                                 sub_key.decode('utf-8'): sub_val 
@@ -134,8 +174,10 @@ def binlog_listener():
                             for key, value in raw_params.items()
                         }
                         
+                        # Convert the ECG values from strings to floats.
                         ecg_values = [float(v) for v in decoded_params["ecg"]["values"]]
                         
+                        # Update the data cache with the ECG data.
                         data_cache.update_data(
                             patient_id=patient_id,
                             param_type=param_type,
@@ -148,13 +190,15 @@ def binlog_listener():
                             timestamp=collection_time.timestamp()
                         )
                         
+                        # Add an event to the send_data_manager.
                         send_data_manager.add_event(
                             patient_id=patient_id,
                             param_type=param_type,
                             event_time=collection_time.timestamp()
                         )
                     
-                    # 更新活跃参数状态：每次监听到更新，都将对应 (patient_id, param_type) 标记为 active，并更新最后更新时间
+                    # Update the active parameters status:
+                    # Mark the (patient_id, param_type) as active and update its last update timestamp.
                     with active_params_lock:
                         active_params[(patient_id, param_type)] = {
                             "active": True,

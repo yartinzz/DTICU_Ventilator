@@ -7,8 +7,8 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import LinearProgress from '@mui/material/LinearProgress'
 import type { Navigation } from '@toolpad/core/AppProvider';
 import { usePathname } from 'next/navigation';
+import { createTheme } from '@mui/material/styles';
 
-import theme from '../theme';
 import { MonitorHeartTwoTone, BloodtypeTwoTone, EngineeringTwoTone, HealingTwoTone } from '@mui/icons-material';
 
 const NAVIGATION: Navigation = [
@@ -22,24 +22,9 @@ const NAVIGATION: Navigation = [
     icon: <DashboardIcon />,
   },
   {
-    segment: 'asynchrony',
-    title: 'Asynchrony Monitor',
-    icon: <EngineeringTwoTone />,
-  },
-  {
     segment: 'ECG',
-    title: 'ECG Monitor',
-    icon: <MonitorHeartTwoTone />,
-  },
-  {
-    segment: 'glycemia',
-    title: 'Glycemic Control (STAR)',
-    icon: <BloodtypeTwoTone />,
-  },
-  {
-    segment: 'deepseek',
-    title: 'DeepSeek Support',
-    icon: <HealingTwoTone />,
+    title: 'ECG monitor',
+    icon: <DashboardIcon />,
   },
 ];
 
@@ -47,7 +32,12 @@ const BRANDING = {
   title: 'DTICU APP',
 };
 
-
+const theme = createTheme({
+  cssVariables: {
+    colorSchemeSelector: 'data-toolpad-color-scheme',
+  },
+  colorSchemes: { light: true, dark: true },
+});
 
 export default function RootLayout(props: { children: React.ReactNode }) {
   
@@ -67,7 +57,6 @@ export default function RootLayout(props: { children: React.ReactNode }) {
             <NextAppProvider
               navigation={NAVIGATION}
               branding={BRANDING}
-              
               theme={theme}
             >
             {props.children}

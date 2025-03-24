@@ -1,20 +1,28 @@
 "use client";
 
+/**
+ * Author: yadian zhao
+ * Institution: Canterbury University
+ * Description: This component renders the ECG monitoring page.
+ * It establishes a WebSocket connection to fetch patient and ECG data,
+ * provides a patient selector, initializes an ECG chart, and uses a Web Worker
+ * to periodically update the chart with new ECG data.
+ */
+
 import React, { useState, useEffect, useRef } from "react";
 import { initECGChart, updateECGChart } from "./echartsECGConfig.js";
 import { Select, MenuItem, InputLabel, FormControl } from "@mui/material";
 import { Typography, Box, Paper } from "@mui/material";
 import { debounce } from "lodash";
 
-
-// 固定值常量定义
+// Fixed constant definitions
 const DEFAULT_UPDATE_POINTS = 10;
 const INITIAL_DATA_POINTS = 7201;
-const POINT_INTERVAL_MS = 1000/360; // 时间刻度间隔（秒）
-const CHART_UPDATE_INTERVAL_MS = 1000/36; // 图表更新周期
+const POINT_INTERVAL_MS = 1000 / 360; // Time interval per data point (milliseconds)
+const CHART_UPDATE_INTERVAL_MS = 1000 / 36; // Chart update cycle (milliseconds)
 const WebSocketUrl = "ws://132.181.62.177:10188/ws";
 
-// 病人选择器组件
+// Patient selector component renders a dropdown menu for selecting a patient.
 const PatientSelector = ({ patients, selectedPatient, onChange }) => {
   return (
     <FormControl fullWidth>
@@ -36,7 +44,7 @@ const PatientSelector = ({ patients, selectedPatient, onChange }) => {
   );
 };
 
-// 初始化 WebSocket 连接的通用函数
+// Generic function to initialize a WebSocket connection and bind event handlers.
 const initializeWebSocket = (url, onOpen, onMessage, onClose) => {
   const socket = new WebSocket(url);
   socket.onopen = onOpen;
@@ -46,42 +54,43 @@ const initializeWebSocket = (url, onOpen, onMessage, onClose) => {
 };
 
 export default function ECGPage() {
+  // State to hold patient list, selected patient, WebSocket instance, and buffer readiness.
   const [patients, setPatients] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [ws, setWs] = useState(null);
   const [isBufferReady, setIsBufferReady] = useState(false);
 
-
-  // 用于控制图表更新的参数
+  // Ref for controlling the number of data points to update on the chart.
   const updatePoints = useRef(DEFAULT_UPDATE_POINTS);
 
-  // 图表与 Worker 引用
+  // Refs for chart instance and Web Worker.
   const ecgChartRef = useRef(null);
   const workerRef = useRef(null);
 
-  // 数据缓存（ECG 数据从后端逐步追加）
+  // Data buffer to accumulate incoming ECG data from the backend.
   const ecgBuffer = useRef([]);
-  // 用于图表显示的数据（初始化为 0）
+  // Data for the chart (initialized with zeros).
   const ecgData = useRef(new Array(INITIAL_DATA_POINTS).fill(0));
-  // 时间刻度数据（单位：秒）
+  // Time axis data in seconds based on the number of data points.
   const timeData = useRef(
     Array.from({ length: INITIAL_DATA_POINTS }, (_, index) => (index * POINT_INTERVAL_MS) / 1000)
   );
 
-  // 建立 WebSocket 连接，并处理后端返回的数据
+  // Establish WebSocket connection and handle messages from the backend.
   useEffect(() => {
     const socket = initializeWebSocket(
       WebSocketUrl,
       () => {
         console.log("[INFO] WebSocket connected");
         setWs(socket);
+        // Request the patient list upon connection.
         socket.send(JSON.stringify({ action: "get_patients" }));
       },
       (message) => {
         console.log("[INFO] Received message:", message.data);
         const data = JSON.parse(message.data);
         if (data && typeof data === "object") {
-          // 处理获取病人列表的消息
+          // Handle patient list response.
           if (data.type === "get_patient_list" && data.status === "success") {
             if (Array.isArray(data.data)) {
               const patientList = data.data.map(([patient_id, name]) => ({
@@ -89,15 +98,21 @@ export default function ECGPage() {
                 name,
               }));
               setPatients(patientList);
+            } else {
+              console.error("Invalid patient list format:", data.message);
             }
             return;
           }
+          // Handle successful ECG data parameter update.
           if (data.type === "get_parameters" && data.status === "success" && data.param_type === "ECG") {
             if (data.data && Array.isArray(data.data.ecg.values)) {
+              // Append new ECG values to the buffer.
               ecgBuffer.current.push(...data.data.ecg.values);
+              // Limit the buffer size to 2500 values.
               if (ecgBuffer.current.length > 2500) {
                 ecgBuffer.current.splice(0, ecgBuffer.current.length - 2500);
               }
+              // Mark the buffer as ready once it has accumulated enough data.
               if (!isBufferReady && ecgBuffer.current.length > 200) {
                 setIsBufferReady(true);
                 console.log("[INFO] Buffer is ready");
@@ -105,13 +120,11 @@ export default function ECGPage() {
             }
             return;
           }
-
-
+          // Handle failure response for parameter subscription.
           if (data.type === "get_parameters" && data.status === "failure") {
             setSelectedPatient(null);
             alert(data.message);
           }
-
           console.warn("Unhandled message:", data);
         }
       },
@@ -122,22 +135,24 @@ export default function ECGPage() {
       }
     );
 
+    // Cleanup WebSocket connection on component unmount.
     return () => {
       socket.close();
     };
-  }, []); 
+  }, []);
 
-  // 初始化 ECG 图表，并使用 Web Worker 定时更新图表
+  // Initialize the ECG chart and set up a Web Worker for periodic chart updates.
   useEffect(() => {
+    // Initialize the ECG chart instance.
     const ecgChart = initECGChart(ecgChartRef, timeData, ecgData);
 
-    // **监听窗口大小变化，触发 ECG 图表 resize**
+    // Debounced resize handler for chart responsiveness.
     const handleResize = debounce(() => {
       ecgChart.resize();
     }, 300);
     window.addEventListener("resize", handleResize);
 
-    // 创建 Web Worker（通过 Blob 动态构造）
+    // Create a Web Worker dynamically using a Blob.
     const workerCode = `
       let interval = null;
       const CHART_UPDATE_INTERVAL_MS = ${CHART_UPDATE_INTERVAL_MS};
@@ -157,14 +172,17 @@ export default function ECGPage() {
     const blob = new Blob([workerCode], { type: "application/javascript" });
     workerRef.current = new Worker(URL.createObjectURL(blob));
 
+    // When the worker sends a tick message, update the chart if the buffer is ready.
     workerRef.current.onmessage = () => {
       if (isBufferReady) {
         updateECGChart(ecgChart, ecgBuffer, ecgData, timeData, updatePoints);
       }
     };
 
+    // Start the Web Worker.
     workerRef.current.postMessage("start");
 
+    // Cleanup on component unmount.
     return () => {
       window.removeEventListener("resize", handleResize);
       ecgChart.dispose();
@@ -173,13 +191,13 @@ export default function ECGPage() {
     };
   }, [isBufferReady]);
 
-  // 病人选择器变化处理
+  // Handler for changes in the patient selector.
   const handlePatientChange = (event) => {
     const selectedId = event.target.value;
     setSelectedPatient(selectedId);
     setIsBufferReady(false);
 
-    // 请求后端停止当前数据，并请求新病人的 ECG 数据
+    // Request the backend to stop current data and fetch new ECG data for the selected patient.
     if (ws) {
       ws.send(JSON.stringify({ action: "stop", patient_id: selectedId }));
       ws.send(
@@ -191,18 +209,19 @@ export default function ECGPage() {
       );
     }
 
+    // Reset the ECG data and buffer.
     ecgData.current.fill(0);
-    ecgBuffer.current.fill(0);  
+    ecgBuffer.current.fill(0);
   };
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 4, p: 4, height: "80vh", width: "80vw" }}>
-      {/* 病人选择器 */}
+      {/* Patient Selector */}
       <Box>
         <PatientSelector patients={patients} selectedPatient={selectedPatient} onChange={handlePatientChange} />
       </Box>
 
-      {/* ECG 动态图表 */}
+      {/* ECG Dynamic Chart */}
       <Paper elevation={3} sx={{ flex: 1, p: 2 }}>
         <Typography variant="h6">ECG Data</Typography>
         <Box ref={ecgChartRef} sx={{ width: "100%", height: "100%" }} />
