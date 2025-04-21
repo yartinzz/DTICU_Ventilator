@@ -361,17 +361,23 @@ export const updatePVLoopChart = (chart, data) => {
 
 
 
-export function initHistoryPEEPChart(containerRef, xData, yData) {
+export function initHistoryPEEPChart(containerRef) {
   if (!containerRef.current) return null;
   const chart = echarts.init(containerRef.current);
 
   const option = {
     title: {
-      text: 'History PEEP（12 hours）',
+      text: 'History PEEP（Last 12h）',
       left: 'center',
+    },
+    legend: {
+      top: 40,
+      data: ['Current PEEP', 'Recommended PEEP'],
+      textStyle: { fontSize: 12 }
     },
     tooltip: {
       trigger: 'axis',
+      axisPointer: { type: 'cross' }
     },
     grid: {
       left: '5%',
@@ -380,29 +386,75 @@ export function initHistoryPEEPChart(containerRef, xData, yData) {
       top: 60,
     },
     xAxis: {
-      type: 'category',
+      type: 'time',
       boundaryGap: false,
-      data: xData,
+      min: Date.now() - 12 * 3600 * 1000,
+      max: Date.now(),
+      axisLabel: {
+        formatter: value => {
+          const d = new Date(value);
+          return (d.getMinutes() === 0 && d.getSeconds() === 0)
+            ? d.getHours().toString().padStart(2, '0') + ':00'
+            : '';
+        }
+      }
     },
     yAxis: {
       type: 'value',
-      name: 'PEEP (cmH2O)',
+      name: 'PEEP (cmH₂O)',
       min: 0,
-      max: 20, // 可根据实际情况调整
+      max: 20,
     },
     series: [
       {
-        name: '平均PEEP',
-        type: 'line',
-        step: 'end',  // 阶梯线的关键
-        data: yData,
-        smooth: false,
-        symbol: 'circle',
-        symbolSize: 8,
+        name: 'Current PEEP',
+        type: 'scatter',
+        data: [],
       },
-    ],
+      {
+        name: 'Recommended PEEP',
+        type: 'scatter',
+        data: [],
+      }
+    ]
   };
 
   chart.setOption(option);
   return chart;
+}
+
+
+export function updateHistoryPEEPChart(chart, times, currentPEEP, recommendedPEEP) {
+  // 1) 转成毫秒时间戳数组
+  const ts = times.map(t => new Date(t).getTime());
+  // 2) 构造阶梯线数据
+  const data1 = ts.map((t,i) => [t, currentPEEP[i]]);
+  const data2 = ts.map((t,i) => [t, recommendedPEEP[i]]);
+
+  chart.setOption({
+    xAxis: {
+      min: Date.now() - 12 * 3600 * 1000,
+      max: Date.now(),
+    },
+    series: [
+      {
+        name: 'Current PEEP',
+        type: 'line',
+        step: 'end',
+        showSymbol: true,       // 如果想在每个拐点画个点，可以设为 true
+        symbol: 'circle',
+        symbolSize: 6,
+        data: data1
+      },
+      {
+        name: 'Recommended PEEP',
+        type: 'line',
+        step: 'end',
+        showSymbol: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        data: data2
+      }
+    ]
+  });
 }

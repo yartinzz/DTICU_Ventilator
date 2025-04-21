@@ -3,6 +3,8 @@
 import json
 from typing import Optional
 from pymysql import OperationalError
+from typing import List, Dict
+from pymysql.err import IntegrityError
 
 from config.logger import logger
 from app.database.connection import get_db_connection
@@ -443,6 +445,109 @@ def fetch_patient_record_detail(record_id: int):
             }
     except OperationalError as e:
         logger.error(f"Failed to fetch patient record detail: {str(e)}")
+        raise
+    finally:
+        conn.close()
+
+
+
+
+
+def store_peep_snapshot(
+    patient_id: str,
+    record_time: str,
+    avg_current_peep: float,
+    avg_recommended_peep: float,
+    blood_glucose: Optional[float] = None,
+    ph: Optional[float] = None,
+    insulin_sensitivity: Optional[float] = None,
+    total_breaths: Optional[int] = None,
+    abnormal_breaths: Optional[int] = None
+) -> None:
+    """
+    插入一条 PEEP 快照；若相同 patient_id+record_time 已存在，则更新该条字段。
+    """
+    logger.debug(f"Storing PEEP snapshot for patient={patient_id} at {record_time}")
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = """
+            INSERT INTO patient_vital_snapshot
+              (patient_id, record_time, current_peep, recommended_peep,
+               blood_glucose, ph, insulin_sensitivity, total_breaths, abnormal_breaths)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+              current_peep        = VALUES(current_peep),
+              recommended_peep    = VALUES(recommended_peep),
+              blood_glucose       = VALUES(blood_glucose),
+              ph                  = VALUES(ph),
+              insulin_sensitivity = VALUES(insulin_sensitivity),
+              total_breaths       = VALUES(total_breaths),
+              abnormal_breaths    = VALUES(abnormal_breaths)
+            """
+            cursor.execute(sql, (
+                patient_id,
+                record_time,
+                avg_current_peep,
+                avg_recommended_peep,
+                blood_glucose,
+                ph,
+                insulin_sensitivity,
+                total_breaths,
+                abnormal_breaths
+            ))
+        conn.commit()
+        logger.debug("PEEP snapshot committed or updated")
+    except IntegrityError as e:
+        # 如果还有别的唯一键冲突，也一并忽略
+        logger.warning(f"Duplicate PEEP snapshot skipped for patient={patient_id} at {record_time}: {e}")
+    except OperationalError as e:
+        logger.error(f"Failed to store PEEP snapshot: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+def fetch_peep_history(patient_id: str) -> list[dict]:
+    """
+    查询 patient_vital_snapshot 表中指定 patient_id，
+    过去 12 小时（相对于数据库服务器的 UTC 时间）内的所有记录，
+    按 record_time 升序返回。
+    返回列表，每项为：
+      {
+        "record_time": "2025-04-19T02:30:00Z",
+        "current_peep": 8.25,
+        "recommended_peep": 9.0
+      }
+    """
+    logger.info(f"Fetching last 12h PEEP history for patient={patient_id}")
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            sql = """
+            SELECT
+              DATE_FORMAT(CONVERT_TZ(record_time, '+00:00', '+00:00'), '%%Y-%%m-%%dT%%H:%%i:%%sZ') AS record_time,
+              current_peep,
+              recommended_peep
+            FROM patient_vital_snapshot
+            WHERE patient_id = %s
+              AND record_time >= UTC_TIMESTAMP() - INTERVAL 12 HOUR
+            ORDER BY record_time ASC
+            """
+            cursor.execute(sql, (patient_id,))
+            rows = cursor.fetchall()
+            history = []
+            for record_time, current_peep, recommended_peep in rows:
+                history.append({
+                    "record_time": record_time,  # e.g. '2025-04-19T02:30:00Z'
+                    "current_peep": current_peep,
+                    "recommended_peep": recommended_peep
+                })
+
+            logger.info(f"Fetched {len(history)} records for patient {patient_id}")
+            return history
+    except OperationalError as e:
+        logger.error(f"Failed to fetch PEEP history: {e}")
         raise
     finally:
         conn.close()

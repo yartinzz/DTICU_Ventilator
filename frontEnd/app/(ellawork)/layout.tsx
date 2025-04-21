@@ -2,7 +2,8 @@ import * as React from 'react';
 import { DashboardLayout } from '@toolpad/core/DashboardLayout';
 import { NextAppProvider } from '@toolpad/core/nextjs';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
-import theme from '../../theme'; // 确保引入了正确的主题
+import theme from '../../theme';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 
 const NEW_PAGE_NAVIGATION = [
   {
@@ -10,13 +11,14 @@ const NEW_PAGE_NAVIGATION = [
     title: 'Main items',
   },
   {
-    segment: 'ellapage',
-    title: 'Ella Page',
+    segment: 'sensorpage',
+    title: 'Sensor Page',
+    icon: <DashboardIcon />,
   },
 ];
 
 const NEW_PAGE_BRANDING = {
-  title: 'Ella App',
+  title: 'DTICU App',
 };
 
 export default function EllaPageLayout({ children }: { children: React.ReactNode }) {

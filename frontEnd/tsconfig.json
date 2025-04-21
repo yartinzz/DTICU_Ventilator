@@ -33,7 +33,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-, "app/(dashboard)/ECG/page.jsx", "app/WebSocketContext.js"  ],
+, "app/(dashboard)/ECG/page.jsx", "app/WebSocketContext.js", "app/(ellawork)/sensorpage/echartsConfig.js", "app/(ellawork)/sensorpage/page.jsx"  ],
   "exclude": [
     "node_modules"
   ]

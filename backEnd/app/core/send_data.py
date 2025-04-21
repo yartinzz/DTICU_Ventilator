@@ -2,6 +2,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import json
 import queue
+import base64
 
 from app.core.events import notifier
 from app.core.cache import data_cache
@@ -13,12 +14,10 @@ class SendDataManager:
         self.queue = queue.Queue()
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
         self.running = True
-        # 启动工作线程
         for _ in range(max_workers):
             self.executor.submit(self.worker)
 
     def add_event(self, patient_id, param_type, event_time):
-        # 仅当该 patient_id 下存在该 param_type 的 websocket 订阅时，才加入事件队列
         with notifier.lock:
             if (patient_id not in notifier.subscriptions or
                 param_type not in notifier.subscriptions[patient_id] or
@@ -32,7 +31,6 @@ class SendDataManager:
         }
         self.queue.put(event)
 
-
     def worker(self):
         while self.running:
             try:
@@ -41,7 +39,7 @@ class SendDataManager:
                 param_type = event["param_type"]
                 event_time = event["event_time"]
                 
-                # 获取对应数据
+                # 获取数据
                 cached_item = data_cache.get_data(
                     patient_id=patient_id,
                     param_type=param_type,
@@ -50,7 +48,38 @@ class SendDataManager:
                 
                 if not cached_item:
                     continue
-                    
+
+
+
+                def convert_bytes_keys(data):
+                    if isinstance(data, dict):
+                        # 将字节串键转换为字符串
+                        return {str(k, 'utf-8') if isinstance(k, bytes) else k: convert_bytes_keys(v) for k, v in data.items()}
+                    elif isinstance(data, list):
+                        # 递归处理列表中的数据
+                        return [convert_bytes_keys(i) for i in data]
+                    elif isinstance(data, bytes):
+                        # 如果是字节串，解码为字符串
+                        try:
+                            return data.decode('utf-8')  # 解码为 UTF-8 字符串
+                        except UnicodeDecodeError:
+                            return base64.b64encode(data).decode()  # 如果解码失败，使用 Base64 编码
+                    else:
+                        return data
+
+                sanitized_data = convert_bytes_keys(cached_item["data"])
+
+
+                
+                # 处理 timestamp 字段，确保其是字符串
+                sanitized_timestamp = (
+                    cached_item["timestamp"].decode() 
+                    if isinstance(cached_item["timestamp"], bytes) 
+                    else cached_item["timestamp"]
+                )
+
+
+                # 获取订阅者
                 subscribers = notifier.get_subscribers(patient_id, param_type)
                 
                 # 构建消息
@@ -60,10 +89,10 @@ class SendDataManager:
                     "status": "success",
                     "code": 200,
                     "message": "Data fetched successfully",
-                    "data": cached_item["data"],
-                    "timestamp": cached_item["timestamp"]
+                    "data": sanitized_data,
+                    "timestamp": sanitized_timestamp
                 })
-                
+
                 # 发送消息
                 for ws in subscribers:
                     asyncio.run_coroutine_threadsafe(
@@ -74,6 +103,9 @@ class SendDataManager:
 
 
             except queue.Empty:
+                continue
+            except Exception as e:
+                logger.error(f"Error in send_data worker: {str(e)}")
                 continue
 
     def shutdown(self):

@@ -10,12 +10,14 @@ import {
   initLineChart,
   updateParamChart,
   initHistoryPEEPChart,
+  updateHistoryPEEPChart,
 } from "./echartsConfig";
 
 import { Select, MenuItem, InputLabel, FormControl, Slider } from '@mui/material';
 import { Typography, Box } from '@mui/material';
 import Paper from '@mui/material/Paper';
 import { debounce } from "lodash";
+import { useTranslation } from "react-i18next";
 
 // 固定值常量定义
 const DEFAULT_UPDATE_POINTS = 3;
@@ -37,19 +39,28 @@ const marks = [
 ];
 
 const PatientSelector = ({ patients, selectedPatient, onChange }) => {
+  const { t } = useTranslation();
+
   return (
     <FormControl fullWidth>
-      <InputLabel id="patient-select-label">Select Patient</InputLabel>
+      <InputLabel id="patient-select-label">
+        {t("Select Patient")}
+      </InputLabel>
       <Select
         labelId="patient-select-label"
         value={selectedPatient || ""}
         onChange={onChange}
-        label="Select Patient"
+        label={t("Select Patient")}
       >
-        <MenuItem value="">Select Patient</MenuItem>
+        <MenuItem value="">
+          {t("Select Patient")}
+        </MenuItem>
         {patients.map((patient) => (
-          <MenuItem key={patient.patient_id} value={patient.patient_id}>
-            {patient.patient_id} - {patient.name}
+          <MenuItem
+            key={patient.patient_id}
+            value={patient.patient_id}
+          >
+            {`${patient.patient_id} - ${patient.name}`}
           </MenuItem>
         ))}
       </Select>
@@ -66,42 +77,14 @@ const initializeWebSocket = (url, onOpen, onMessage, onClose) => {
 };
 
 
-function generateHourlyLabels(startHour = 9, hours = 12) {
-  const labels = [];
-  for (let i = 0; i < hours; i++) {
-    const hour = (startHour + i) % 24;
-    labels.push(hour.toString().padStart(2, '0') + ':00');
-  }
-  return labels;
-}
-
-function generateRandomPEEPData(count = 12, min = 0, max = 20) {
-  const options = [];
-  for (let i = min; i <= max; i += 2) {
-    options.push(i);
-  }
-  const data = [];
-  let lastValue = null; // 记录上一次生成的数
-  for (let i = 0; i < count; i++) {
-    let newValue;
-    if (lastValue !== null && Math.random() < 0.4) {
-      newValue = lastValue;
-    } else {
-      newValue = options[Math.floor(Math.random() * options.length)];
-    }
-    data.push(newValue);
-    lastValue = newValue;
-  }
-  return data;
-}
-
-
 export default function HomePage() {
+  const { t } = useTranslation();
+  
   const [patients, setPatients] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [ws, setWs] = useState(null);
   const [isBufferReady, setIsBufferReady] = useState(false);
-  const [deltaPEEP, setDeltaPEEP] = useState(0); // 用于保存滑动条的值
+  const [deltaPEEP, setDeltaPEEP] = useState(2); 
   const [BestPEEP, setBestPEEP] = useState(0); 
   const [CurrentPEEP, setCurrentPEEP] = useState(0);
 
@@ -112,13 +95,8 @@ export default function HomePage() {
   const PVLoopchartRef = useRef(null);
   const workerRef = useRef(null);
 
-
-  const historyPEEPChartRef = useRef(null);
-  const [historyPEEPData, setHistoryPEEPData] = useState({
-    xAxis: [],
-    yAxis: [],
-  });
-
+  const historyPEEPContainerRef = useRef(null);
+  const historyPEEPChartRef    = useRef(null);
 
 
 
@@ -141,16 +119,19 @@ export default function HomePage() {
 
   useEffect(() => {
     PVLoopchartRef.current = initPVLoopChart(PVLoopchartRef);
+    historyPEEPChartRef.current = initHistoryPEEPChart({
+      current: historyPEEPContainerRef.current
+    });
     // Initialize WebSocket
     const socket = initializeWebSocket(
       WebSocketUrl,
       () => {
         console.log("[INFO] WebSocket connected");
+
         setWs(socket);
         socket.send(JSON.stringify({ action: "get_patients" }));
       },
       (message) => {
-        console.log(message.data);
         const data = JSON.parse(message.data);
         if (data && typeof data === "object") {
           // 处理获取病人列表
@@ -170,9 +151,7 @@ export default function HomePage() {
         
           // 处理 deltaPEEP 预测结果
           if (data.type === "analyze_deltaPEEP" && data.status === "success") {
-            console.log(data.data);
             if (data.data) {
-              console.log("Received analysis result:", data.data);
               setAnalysisResult(data.data);
             } else {
               console.error("Missing analysis result:", data);
@@ -216,10 +195,24 @@ export default function HomePage() {
             setSelectedPatient(null);
             alert(data.message);
           }
+
+
+          if (data.type === "peep_history" && data.status === "success") {
+
+            if (historyPEEPChartRef.current) {
+              updateHistoryPEEPChart(
+                historyPEEPChartRef.current,
+                data.data.times,
+                data.data.current_peep,
+                data.data.recommended_peep
+              );
+            }
+            //return;
+          }
         
-          console.warn("Unhandled data type:", data);
+          // console.warn("Unhandled data type:", data);
         } else {
-          console.error("Invalid data format:", data);
+          // console.error("Invalid data format:", data);
         }        
       },
       () => {
@@ -231,13 +224,6 @@ export default function HomePage() {
 
     return () => socket.close();
   }, []);
-
-  useEffect(() => {
-    const xAxis = generateHourlyLabels(9, 12);
-    const yAxis = generateRandomPEEPData(12, 2, 12);
-    setHistoryPEEPData({ xAxis, yAxis });
-  }, []);
-
 
 
   useEffect(() => {
@@ -251,7 +237,6 @@ export default function HomePage() {
       }
     });
 
-    console.log(paramChartRefs.current)
   
     const handleResize = debounce(() => {
       pressureChart.resize();
@@ -263,6 +248,10 @@ export default function HomePage() {
       
       if (PVLoopchartRef.current) {
         PVLoopchartRef.current.resize();
+      }
+
+      if (historyPEEPChartRef.current) {
+        historyPEEPChartRef.current.resize();
       }
     }, 300);
   
@@ -315,7 +304,6 @@ export default function HomePage() {
         pressureData: pressureData.current,
         flowData: flowData.current,
       };
-      console.log("Periodic analysis action:", action);
       ws.send(JSON.stringify(action));
     }, 10000); // 每10秒一次
     return () => clearInterval(intervalId);
@@ -353,6 +341,9 @@ export default function HomePage() {
   };
   
 
+
+  const hasSentSnapshotRef = useRef(false);
+
   useEffect(() => {
     if (analysisResult) {
       const paramData = {};
@@ -389,36 +380,101 @@ export default function HomePage() {
 
       const bestPEEP = calculateBestPEEP(k2, od, vfrc, mvpower, deltaPEEPs , paramData["PEEP"]);
       setBestPEEP(bestPEEP);
-      console.log(bestPEEP);
+      // —— 新增：仅第一次发送快照 —— //
+      if (!hasSentSnapshotRef.current) {
+        const now = new Date();
+        const avgCurrent = paramData["PEEP"];      // 当前计算出的 PEEP
+        const avgRecommended = bestPEEP;           // 刚计算出的最佳 PEEP
+
+
+        ws.send(JSON.stringify({
+          action: 'store_peep_snapshot',
+          patient_id: selectedPatient,
+          record_time:  now.toISOString(),
+          avg_current_peep:    null,
+          avg_recommended_peep: null,
+        }));
+
+        // 标记：已发送过，不再重复
+        hasSentSnapshotRef.current = true;
+      }
+
+
     }
   }, [analysisResult]);
   
 
+  const [peepHistory, setPeepHistory] = useState([]);
+  const peepHistoryRef = useRef(peepHistory);
+  const lastSentMinuteRef = useRef(null);
+
+  // 每次 state 更新都同步到 ref
+  useEffect(() => {
+    peepHistoryRef.current = peepHistory;
+  }, [peepHistory]);
 
   useEffect(() => {
-    if (!historyPEEPData.xAxis.length) return;
-  
-    // 初始化历史PEEP图表
-    const historyChart = initHistoryPEEPChart(
-      historyPEEPChartRef,
-      historyPEEPData.xAxis,
-      historyPEEPData.yAxis
-    );
-  
-    // 监听窗口大小改变，进行图表自适应
-    const handleResize = debounce(() => {
-      if (historyChart) {
-        historyChart.resize();
-      }
-    }, 300);
-    window.addEventListener("resize", handleResize);
-  
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      historyChart && historyChart.dispose();
-    };
-  }, [historyPEEPData]);
+    if (!ws || !selectedPatient) return;
 
+    let intervalId = null;
+    let timeoutId = null;
+
+    const recordAndMaybeSend = () => {
+      const now = new Date();
+      // 1) 构造新历史数组
+      const entry = { time: now, current: CurrentPEEP, recommended: BestPEEP };
+      const hist = [...peepHistoryRef.current.slice(-9), entry];
+
+      // 2) 同步到 state & ref
+      setPeepHistory(hist);
+      peepHistoryRef.current = hist;
+
+      // 3) 只有在 0 分或 30 分，并且同一分钟只发一次
+      const minute = now.getMinutes();
+      if ((minute === 0 || minute === 30) && lastSentMinuteRef.current !== minute) {
+        console.log("Sending PEEP snapshot...");
+        lastSentMinuteRef.current = minute;
+
+        // 4) 计算平均值
+        const sumCurrent = hist.reduce((s, e) => s + e.current, 0);
+        const sumRecomm = hist.reduce((s, e) => s + e.recommended, 0);
+        const avgCurrent = parseFloat((sumCurrent / hist.length).toFixed(2));
+        const avgRecommended = parseFloat((sumRecomm / hist.length).toFixed(2));
+
+        console.log("avgCurrent=", avgCurrent);
+        console.log("avgRecommended=", avgRecommended);
+
+        // 5) 发送到后端
+        ws.send(
+          JSON.stringify({
+            action: 'store_peep_snapshot',
+            patient_id: selectedPatient,
+            record_time: now.toISOString(),
+            avg_current_peep: avgCurrent,
+            avg_recommended_peep: avgRecommended,
+          })
+        );
+      }
+    };
+
+    // 先算到「下一整分」的延时
+    const now = new Date();
+    const next = new Date(now);
+    next.setSeconds(0, 0);
+    next.setMinutes(now.getMinutes() + 1);
+    const delay = next - now;
+
+    // 到下一个整分时先跑一次，然后每 60s 再跑
+    timeoutId = setTimeout(() => {
+      recordAndMaybeSend();
+      intervalId = setInterval(recordAndMaybeSend, 60 * 1000);
+    }, delay);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
+  }, [ws, selectedPatient, CurrentPEEP, BestPEEP]);
 
 
 
@@ -464,7 +520,7 @@ export default function HomePage() {
 
 const layoutConfig = {
   left: [
-    { name: "PatientSelector", height: 80, component: PatientSelector, noPaper: true },
+    { name: t("Patient Selector"), height: 80, component: PatientSelector, noPaper: true },
     { height: 60, component: "CurrentPEEP"},
     { height: 280, ref: pressureChartRef },
     { height: 280, ref: flowChartRef },
@@ -481,7 +537,10 @@ const layoutConfig = {
   })),
 };
 
+
+
 const renderComponent = (item) => {
+  // PatientSelector 保持不变
   if (item.component === PatientSelector) {
     return (
       <PatientSelector
@@ -491,6 +550,7 @@ const renderComponent = (item) => {
       />
     );
   }
+
   if (item.component === "slider") {
     return (
       <Slider
@@ -511,6 +571,8 @@ const renderComponent = (item) => {
       />
     );
   }
+
+  // 建议最佳 PEEP
   if (item.component === "bestPEEP") {
     return (
       <Box
@@ -524,39 +586,56 @@ const renderComponent = (item) => {
           height: "100%",
         }}
       >
-        <Typography variant="body1" sx={{ textAlign: "left", flex: 2, fontSize: "20px"  }}>
-          Suggested Best PEEP =
+        <Typography
+          variant="body1"
+          sx={{ textAlign: "left", flex: 2, fontSize: "20px" }}
+        >
+          {t("Suggested Best PEEP")}：
         </Typography>
-        <Typography variant="body1" sx={{ textAlign: "right", flex: 1, fontSize: "24px" }}>
+        <Typography
+          variant="body1"
+          sx={{ textAlign: "right", flex: 1, fontSize: "24px" }}
+        >
           {BestPEEP}
         </Typography>
       </Box>
     );
   }
+
+  // 当前 PEEP
   if (item.component === "CurrentPEEP") {
-      return (
-        <Box
-          elevation={3}
-          sx={{
-            p: 2,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            borderRadius: 1,
-            height: "100%",
-          }}
+    return (
+      <Box
+        elevation={3}
+        sx={{
+          p: 2,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderRadius: 1,
+          height: "100%",
+        }}
+      >
+        <Typography
+          variant="body1"
+          sx={{ textAlign: "left", flex: 2, fontSize: "20px" }}
         >
-          <Typography variant="body1" sx={{ textAlign: "left", flex: 2, fontSize: "20px"  }}>
-            Current PEEP =
-          </Typography>
-          <Typography variant="body1" sx={{ textAlign: "right", flex: 1, fontSize: "24px" }}>
-            {CurrentPEEP}
-          </Typography>
-        </Box>
-      );
+          {t("Current PEEP")}：
+        </Typography>
+        <Typography
+          variant="body1"
+          sx={{ textAlign: "right", flex: 1, fontSize: "24px" }}
+        >
+          {CurrentPEEP}
+        </Typography>
+      </Box>
+    );
   }
+
+  // 默认渲染容器
   return <Box ref={item.ref} sx={{ width: "100%", height: "100%" }} />;
 };
+
 
   
 return (
@@ -622,7 +701,7 @@ return (
       {/* 下行：历史PEEP图表，整行展示 */}
       <Box>
         <Paper elevation={3} sx={{ height: 181 +63, p: 2 }}>
-          <Box ref={historyPEEPChartRef} sx={{ width: "100%", height: "100%" }} />
+          <Box ref={historyPEEPContainerRef} sx={{ width: "100%", height: "100%" }} />
         </Paper>
       </Box>
     </Box>

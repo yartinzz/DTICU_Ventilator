@@ -8,10 +8,10 @@ import { debounce } from "lodash";
 
 
 // 固定值常量定义
-const DEFAULT_UPDATE_POINTS = 10;
+const DEFAULT_UPDATE_POINTS = 18;
 const INITIAL_DATA_POINTS = 7201;
 const POINT_INTERVAL_MS = 1000/360; // 时间刻度间隔（秒）
-const CHART_UPDATE_INTERVAL_MS = 1000/36; // 图表更新周期
+const CHART_UPDATE_INTERVAL_MS = 50; // 图表更新周期
 const WebSocketUrl = "ws://132.181.62.177:10188/ws";
 
 // 病人选择器组件

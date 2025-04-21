@@ -15,8 +15,12 @@ import {
   Button
 } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
+import { useTranslation } from 'react-i18next';
 
 export default function AsynchronyPage() {
+
+    const { t } = useTranslation();
+
   // ---------------------------
   // 数据部分：可根据实际需要调整
   // ---------------------------
@@ -30,63 +34,62 @@ export default function AsynchronyPage() {
 
   // 图表数据
   const chartData = [
-    { value: breathNumber, name: 'Normal' },
-    { value: asynchronyBreath, name: 'Asynchrony' },
-    { value: noiseBreath, name: 'Noise' }
+    { value: breathNumber, name: t('Normal') },
+    { value: asynchronyBreath, name: t('Asynchrony') },
+    { value: noiseBreath, name: t('Noise') }
   ];
+
 
   // 表格数据
   const mechanicsData = [
     {
       parameter: 'Ers (cmH2O/L)',
       median: '38.5',
-      iqr: '12',
-      fifthNinetyFifth: '20.5 - 71.2',
-      minMax: '11 - 83'
+      iqr: '37.7 - 39.8',
+      fifthNinetyFifth: '35.9 - 42.2',
+      minMax: '-30.3 - 95.6'
     },
     {
       parameter: 'Rrs (cmH2O/L/s)',
-      median: '7.7',
-      iqr: '3.9',
-      fifthNinetyFifth: '2.8 - 18.3',
-      minMax: '2 - 27'
+      median: '12.6',
+      iqr: '11.3 - 14',
+      fifthNinetyFifth: '10.5 - 22.3',
+      minMax: '-23.6 - 77'
     },
     {
       parameter: 'PIP (cmH2O)',
-      median: '29',
-      iqr: '9',
-      fifthNinetyFifth: '21 - 41',
-      minMax: '11 - 45'
+      median: '29.7',
+      iqr: '29.3 - 30.1',
+      fifthNinetyFifth: '28.5 - 32.6',
+      minMax: '17.3 - 40'
     },
     {
       parameter: 'PEEP (cmH2O)',
       median: '11',
-      iqr: '4',
-      fifthNinetyFifth: '8 - 12',
-      minMax: '3 - 15'
+      iqr: '10 - 11',
+      fifthNinetyFifth: '10 - 12',
+      minMax: '8 - 12'
     },
     {
       parameter: 'Vt (ml)',
       median: '458',
-      iqr: '125',
-      fifthNinetyFifth: '376 - 732',
-      minMax: '316 - 800'
+      iqr: '456 - 459',
+      fifthNinetyFifth: '453 - 468',
+      minMax: '97 - 946'
     },
     {
       parameter: 'PIP-PEEP (cmH2O)',
-      median: '19',
-      iqr: '6',
-      fifthNinetyFifth: '13 - 29',
-      minMax: '9 - 33'
+      median: '18.7',
+      iqr: '18.3 - 19.1',
+      fifthNinetyFifth: '17.5 - 21.6',
+      minMax: '8.1 - 35.9'
     }
   ];
 
-  // ---------------------------
   // ECharts 配置
-  // ---------------------------
   const pieOption = {
     title: {
-      text: 'Breath Condition Distribution',
+      text: t('Breath Condition Distribution'),
       left: 'center'
     },
     tooltip: {
@@ -100,7 +103,7 @@ export default function AsynchronyPage() {
     },
     series: [
       {
-        name: 'Distribution',
+        name: t('Distribution'),
         type: 'pie',
         radius: '50%',
         label: {
@@ -119,20 +122,17 @@ export default function AsynchronyPage() {
   };
 
   return (
-    <Box sx={{ p: 2 , gap: 4,  
-      height: "100vh",
-      width: "80vw",}}>
+    <Box sx={{ p: 2, gap: 4, height: '100vh', width: '80vw' }}>
       {/* 标题行 */}
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5" sx={{ flexGrow: 1 }}>
-          Asynchrony Analysis
+          {t('Asynchrony Analysis')}
         </Typography>
-        {/* 按钮：Rerun Analysis、AI Model Management */}
         <Button variant="contained" color="primary" sx={{ mr: 2 }}>
-          Rerun Analysis
+          {t('Rerun Analysis')}
         </Button>
         <Button variant="outlined" color="primary">
-          AI Model Management
+          {t('AI Model Management')}
         </Button>
       </Box>
 
@@ -142,14 +142,22 @@ export default function AsynchronyPage() {
         <Grid item xs={12} md={4}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
-              Results:
+              {t('Results:')}
             </Typography>
-            <Typography>Breath number: {breathNumber}</Typography>
-            <Typography>Asynchrony breath: {asynchronyBreath}</Typography>
-            <Typography>Noise breath: {noiseBreath}</Typography>
-            <Typography>Total: {totalBreath}</Typography>
+            <Typography>
+              {t('Breath number:')} {breathNumber}
+            </Typography>
+            <Typography>
+              {t('Asynchrony breath:')} {asynchronyBreath}
+            </Typography>
+            <Typography>
+              {t('Noise breath:')} {noiseBreath}
+            </Typography>
+            <Typography>
+              {t('Total')}：{totalBreath}
+            </Typography>
             <Typography sx={{ mt: 1, fontWeight: 'bold' }}>
-              Asynchrony Index (AI): {asynchronyIndex}
+              {t('Asynchrony Index (AI):')} {asynchronyIndex}
             </Typography>
           </Paper>
         </Grid>
@@ -158,7 +166,7 @@ export default function AsynchronyPage() {
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 2, height: '100%' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
-              Graph:
+              {t('Graph:')}
             </Typography>
             <ReactECharts option={pieOption} style={{ height: 450 }} />
           </Paper>
@@ -169,17 +177,17 @@ export default function AsynchronyPage() {
       <Box sx={{ mt: 2 }}>
         <Paper sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2 }}>
-            Respiratory Mechanics
+            {t('Respiratory Mechanics')}
           </Typography>
           <TableContainer>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Parameter</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Median</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>IQR</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>5<sup>th</sup>-95<sup>th</sup> perc.</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Min - Max</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>{t('Parameter')}</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>{t('Median')}</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>{t('IQR')}</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>{t('5th-95th perc.')}</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>{t('Min - Max')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
