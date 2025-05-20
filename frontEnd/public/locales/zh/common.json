@@ -101,8 +101,11 @@
         "patientItem": "{{id}} - {{name}}"
       },
       "chart": {
-        "ecgWaveform": "ECG",
-        "rPeak": "R峰定位",
+        "ecgWaveform": "心电（ECG）",
+        "eegWaveform": "脑电（EEG）",
+        "impWaveform": "阻抗（IMP）",
+        "emgWaveform": "肌电（EMG）",
+        "rPeak": "QRS波 R峰定位",
         "rFeature": "R波特征强化"
       },
       "suggestMode": {

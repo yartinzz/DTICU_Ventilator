@@ -99,6 +99,9 @@
       },
       "chart": {
         "ecgWaveform": "ECG Waveform",
+        "eegWaveform": "EEG Waveform",
+        "impWaveform": "Impedance Waveform",
+        "emgWaveform": "EMG Waveform",
         "rPeak": "R Peak Localization",
         "rFeature": "R Feature Enhancement"
       },

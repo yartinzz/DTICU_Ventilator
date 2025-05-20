@@ -428,8 +428,6 @@ def fetch_patient_record_detail(record_id: int):
             if not row:
                 return None
 
-
-            logger.info(row)
             return {
                 "record_id": row[0],
                 "patient_id": row[1],

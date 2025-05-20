@@ -18,7 +18,7 @@ global_current_tasks = defaultdict(dict)
 
 async def handle_user(websocket: WebSocket, user_id):
     await websocket.accept()
-    logger.info(f"User {user_id} connected")
+    # logger.info(f"User {user_id} connected")
     
     try:
         while True:
@@ -64,6 +64,15 @@ async def handle_user(websocket: WebSocket, user_id):
                     notifier.subscribe(patient_id, param_types, websocket)
                     global_current_tasks[websocket][patient_id] = param_types
                     logger.info(f"Subscribed for patient {patient_id} with parameters {param_types}")
+                    await websocket.send_text(json.dumps({
+                        "type": "get_parameters",
+                        "param_type": param_types,
+                        "status": "success",
+                        "code": 200,
+                        "message": f"Successfully subscribed to {', '.join(param_types)} for patient {patient_id}",
+                        "data": None,
+                        "timestamp": datetime.now().isoformat()
+                    }))
             
             elif message["action"] == "analyze_deltaPEEP":
                 logger.info(f"Received deltaPEEP analysis request from user {user_id}")

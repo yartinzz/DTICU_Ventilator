@@ -135,7 +135,10 @@ def binlog_listener():
                             for key, value in raw_params.items()
                         }
 
-                        ecg_values = [float(v) for v in decoded_params["ecg"]["values"]]
+                        ecg_values        = [float(v) for v in decoded_params["ecg"]["values"]]
+                        emg_values        = [float(v) for v in decoded_params["emg"]["values"]]
+                        impedance_values  = [float(v) for v in decoded_params["impedance"]["values"]]
+                        eeg_values        = [float(v) for v in decoded_params["eeg"]["values"]]
 
                         data_cache.update_data(
                             patient_id=patient_id,
@@ -144,6 +147,18 @@ def binlog_listener():
                                 "ecg": {
                                     "unit": decoded_params["ecg"]["unit"],
                                     "values": ecg_values
+                                },
+                                "emg": {
+                                    "unit":   decoded_params["emg"]["unit"],
+                                    "values": emg_values
+                                },
+                                "impedance": {
+                                    "unit":   decoded_params["impedance"]["unit"],
+                                    "values": impedance_values
+                                },
+                                "eeg": {
+                                    "unit":   decoded_params["eeg"]["unit"],
+                                    "values": eeg_values
                                 }
                             },
                             timestamp=collection_time.timestamp()

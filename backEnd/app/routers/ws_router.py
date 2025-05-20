@@ -84,12 +84,10 @@ def get_patient_records_route(
     if record_type:
         # 根据类型和时间范围获取记录列表
         records = fetch_patient_records_by_type(patient_id, record_type, start_date, end_date)
-        logger.info(records)
         return records
     else:
         # 不分类型，返回所有记录
         all_records = fetch_patient_records(patient_id)
-        logger.info(all_records)
         return all_records
 
 @router.get("/patients/{patient_id}/records/{record_id}")
@@ -111,6 +109,21 @@ def update_patient(patient_id: int, patient_data: dict):
     if rowcount == 0:
         raise HTTPException(status_code=404, detail="Patient not found or no change")
     return {"msg": "Patient info updated successfully"}
+
+
+@router.get("/patients/{patient_id}/peep_history")
+def get_peep_history(patient_id: int):
+    """
+    获取指定患者的“peep”历史数据
+    """
+    # fetch_peep_history 由您在 app.database.queries 中实现
+    history = fetch_peep_history(patient_id)
+    if history is None:
+        raise HTTPException(status_code=404, detail="Peep history not found")
+    return {"patient_id": patient_id, "history_peep": history}
+
+
+
 
 # 将 router 注册到 fastapp
 fastapp.include_router(router)

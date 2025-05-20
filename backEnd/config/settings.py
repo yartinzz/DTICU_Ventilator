@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     BINLOG_PASSWORD: str = os.getenv("BINLOG_PASSWORD")
 
     SAMPLING_RATE: int = 125
-    MATLAB_ENGINE_POOL_SIZE: int = 5 
-    MAX_CONNECTIONS: int = 10
+    MATLAB_ENGINE_POOL_SIZE: int = 200
+    MAX_CONNECTIONS: int = 2000
 
     DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY")
 

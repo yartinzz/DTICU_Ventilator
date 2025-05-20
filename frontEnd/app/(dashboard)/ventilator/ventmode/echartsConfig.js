@@ -1,6 +1,6 @@
-// 假设 getCommonChartOptions 已经在 echartsConfig 中定义
-// 示例中直接引用 getCommonChartOptions，用于生成公共配置
 import * as echarts from "echarts";
+
+// 获取公共的图表配置
 const getCommonChartOptions = (timeData, yAxisLabel, xAxisType = 'category') => {
   return {
     title: {
@@ -12,7 +12,7 @@ const getCommonChartOptions = (timeData, yAxisLabel, xAxisType = 'category') => 
       show: true,
     },
     legend: {
-      top: '10%',
+      top: '5%', // 调整图例标签位置，避免遮挡
       textStyle: { color: '#555' },
     },
     xAxis: {
@@ -20,19 +20,19 @@ const getCommonChartOptions = (timeData, yAxisLabel, xAxisType = 'category') => 
       data: timeData.current,
       boundaryGap: false,
       name: 'Time (s)',
+      nameGap: 30,
       nameLocation: 'middle',
       nameTextStyle: { fontSize: 14, color: '#333' },
       axisLabel: { 
         formatter: "{value}",
-        interval: 359,  // Ensure all labels are displayed
+        interval: 249,  // Ensure all labels are displayed
       },
       splitLine: { show: false },
-      position: 'bottom',  // Always place x-axis at the bottom
+      position: 'bottom', // Always place x-axis at the bottom
       axisLine: {
         show: true,  // 显示坐标轴
         onZero: false,  // 禁止横轴总是与0点交叉
       },
-
     },
     yAxis: {
       type: 'value',
@@ -45,9 +45,9 @@ const getCommonChartOptions = (timeData, yAxisLabel, xAxisType = 'category') => 
       nameTextStyle: { fontSize: 14, color: '#333' },
     },
     grid: {
-      left: "5%",
+      left: "3%",
       right: "5%",
-      top: "15%",
+      top: "10%",
       bottom: "15%",
       containLabel: true,
     },
@@ -72,7 +72,7 @@ export const initECGChart = (chartRef, timeData, ecgData) => {
         data: ecgData.current,
         showSymbol: false, // 隐藏散点
         lineStyle: {
-          color: "rgba(255, 99, 132, 1)", // 例如红色
+          color: "rgba(255, 99, 132, 1)",
           width: 2,
         },
         smooth: true,
@@ -125,7 +125,7 @@ export const updateECGChart = (ecgChart, ecgBuffer, ecgData, timeData, updatePoi
         min: ecgRange.min,
         max: ecgRange.max,
         axisLabel: {
-          formatter: (value) => value.toFixed(2) + " mV",
+          formatter: (value) => value.toFixed(1) + " mV",  // 设置精度为1位
         },
         // 设置刻度间隔为整体范围的 1/5，可根据需要调整
         interval: (ecgRange.max - ecgRange.min) / 5,
@@ -134,6 +134,175 @@ export const updateECGChart = (ecgChart, ecgBuffer, ecgData, timeData, updatePoi
     true
   );
 };
+
+/**
+ * Initialize EMG chart.
+ */
+export const initEMGChart = (chartRef, timeData, emgData) => {
+  const chart = echarts.init(chartRef.current);
+  const options = {
+    ...getCommonChartOptions(timeData, 'EMG (mV)'),
+    series: [{
+      name: 'EMG', type: 'line', data: emgData.current,
+      showSymbol: false, smooth: true,
+      lineStyle: {
+        color: "rgba(255, 99, 132, 1)",
+        width: 2,
+      },
+    }],
+  };
+  chart.setOption(options);
+  return chart;
+};
+
+/**
+ * Update EMG chart with buffering and dynamic Y-range.
+ */
+export const updateEMGChart = (emgChart, emgBuffer, emgData, timeData, updatePoints) => {
+  if (emgBuffer.current.length >= updatePoints.current) {
+    const batch = emgBuffer.current.splice(0, updatePoints.current);
+    emgData.current.push(...batch);
+    emgData.current.splice(0, updatePoints.current);
+  }
+  // Calculate the dynamic Y range
+  const max = Math.max(...emgData.current);
+  const min = Math.min(...emgData.current);
+  const margin = 0.5;
+  const yAxis = { 
+    min: min - margin, 
+    max: max + margin, 
+    axisLabel: { formatter: v => Math.round(v) + ' mV' }  // 只显示整数
+  };
+
+  emgChart.setOption({
+    ...getCommonChartOptions(timeData, 'EMG (mV)'),
+    series: [{ name: 'EMG', data: emgData.current, type: 'line', showSymbol: false, smooth: true, lineStyle: {
+      color: "rgba(255, 99, 132, 1)",
+      width: 2,
+    }, }],
+    yAxis: {
+      ...yAxis,
+      interval: 50, // 每50一个刻度
+    },
+  }, true);
+};
+
+/**
+ * Initialize Impedance chart.
+ */
+export const initImpedanceChart = (chartRef, timeData, impData) => {
+  const chart = echarts.init(chartRef.current);
+  const options = {
+    ...getCommonChartOptions(timeData, 'Impedance (Ω)'),
+    series: [{ name: 'Impedance', type: 'line', data: impData.current, showSymbol: false, smooth: true, 
+      lineStyle: {
+        color: "rgba(255, 99, 132, 1)",
+        width: 2,
+      }, }],
+  };
+  chart.setOption(options);
+  return chart;
+};
+
+/**
+ * Update Impedance chart.
+ */
+export const updateImpedanceChart = (impChart, impBuffer, impData, timeData, updatePoints) => {
+  if (impBuffer.current.length >= updatePoints.current) {
+    const batch = impBuffer.current.splice(0, updatePoints.current);
+    impData.current.push(...batch);
+    impData.current.splice(0, updatePoints.current);
+  }
+  const max = Math.max(...impData.current);
+  const min = Math.min(...impData.current);
+  const range = max - min;
+  const margin = range * 0.1;
+  const yAxis = { 
+    min: min - margin, 
+    max: max + margin, 
+    axisLabel: { formatter: v => v.toFixed(1) + ' Ω' }  // 小数点后1位
+  };
+
+  impChart.setOption({
+    ...getCommonChartOptions(timeData, 'Impedance (Ω)'),
+    series: [{ name: 'Impedance', data: impData.current, type: 'line', showSymbol: false, smooth: true, lineStyle: {
+      color: "rgba(255, 99, 132, 1)",
+      width: 2,
+    },}],
+    yAxis: {
+      ...yAxis,
+      interval: 0.5, // 每0.5一个刻度
+    },
+  }, true);
+};
+
+/**
+ * Initialize EEG chart.
+ */
+export const initEEGChart = (chartRef, timeData, eegData) => {
+  const chart = echarts.init(chartRef.current);
+  const options = {
+    ...getCommonChartOptions(timeData, 'EEG (µV)'),
+    series: [{ name: 'EEG', type: 'line', data: eegData.current, showSymbol: false, smooth: true,         
+      lineStyle: {
+      color: "rgba(255, 99, 132, 1)",
+      width: 2,
+    }, }],
+  };
+  chart.setOption(options);
+  return chart;
+};
+
+/**
+ * Update EEG chart.
+ */
+export const updateEEGChart = (eegChart, eegBuffer, eegData, timeData, updatePoints) => {
+  if (eegBuffer.current.length >= updatePoints.current) {
+    const batch = eegBuffer.current.splice(0, updatePoints.current);
+    eegData.current.push(...batch);
+    eegData.current.splice(0, updatePoints.current);
+  }
+  const max = Math.max(...eegData.current);
+  const min = Math.min(...eegData.current);
+  const margin = 5;
+  const yAxis = { 
+    min: min - margin, 
+    max: max + margin, 
+    axisLabel: { formatter: v => Math.round(v) + ' µV' }  // 只显示整数
+  };
+
+  eegChart.setOption({
+    ...getCommonChartOptions(timeData, 'EEG (µV)'),
+    series: [{ name: 'EEG', data: eegData.current, type: 'line', showSymbol: false, smooth: true, lineStyle: {
+      color: "rgba(255, 99, 132, 1)",
+      width: 2,
+    },}],
+    yAxis,
+  }, true);
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // --- R 峰定位 图表初始化 ---
@@ -182,7 +351,7 @@ export function initRPeakChart(ref) {
       }
     ],
     tooltip: { trigger: 'axis' },
-    grid: { left: '5%', right: '0%', bottom: '20%', top: '15%' }
+    grid: { left: '3%', right: '3%', bottom: '25%', top: '15%' }
   };
   chart.setOption(option);
   return chart;
@@ -265,7 +434,7 @@ export function initRFeatureChart(ref) {
       }
     ],
     tooltip: { trigger: 'axis' },
-    grid: { left: '5%', right: '0%', bottom: '20%', top: '15%' }
+    grid: { left: '3%', right: '3%', bottom: '25%', top: '15%' }
   };
   chart.setOption(option);
   return chart;

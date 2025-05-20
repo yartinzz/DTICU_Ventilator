@@ -60,7 +60,7 @@ class DataUpdateNotifier:
         for patient_id, params in self.subscriptions.items():
             for param, websockets in params.items():
                 ws_ids = [str(id(ws)) for ws in websockets]
-                logger.info(f"{patient_id}/{param}: {', '.join(ws_ids)}")
+                # logger.info(f"{patient_id}/{param}: {', '.join(ws_ids)}")
 
 
 # 全局订阅器实例
