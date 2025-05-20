@@ -15,14 +15,14 @@ import { Select, MenuItem, InputLabel, FormControl } from "@mui/material";
 import { Typography, Box, Paper } from "@mui/material";
 import { debounce } from "lodash";
 
-// Fixed constant definitions
-const DEFAULT_UPDATE_POINTS = 10;
+
+const DEFAULT_UPDATE_POINTS = 18;
 const INITIAL_DATA_POINTS = 7201;
-const POINT_INTERVAL_MS = 1000 / 360; // Time interval per data point (milliseconds)
-const CHART_UPDATE_INTERVAL_MS = 1000 / 36; // Chart update cycle (milliseconds)
+const POINT_INTERVAL_MS = 1000/360; 
+const CHART_UPDATE_INTERVAL_MS = 50; 
 const WebSocketUrl = "ws://132.181.62.177:10188/ws";
 
-// Patient selector component renders a dropdown menu for selecting a patient.
+
 const PatientSelector = ({ patients, selectedPatient, onChange }) => {
   return (
     <FormControl fullWidth>

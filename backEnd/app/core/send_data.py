@@ -11,6 +11,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import json
 import queue
+import base64
 
 from app.core.events import notifier
 from app.core.cache import data_cache
@@ -78,41 +79,60 @@ class SendDataManager:
                 
                 if not cached_item:
                     continue
-                
-                # Get all subscribers for the given patient and parameter type.
+
+
+
+                def convert_bytes_keys(data):
+                    if isinstance(data, dict):
+                        return {str(k, 'utf-8') if isinstance(k, bytes) else k: convert_bytes_keys(v) for k, v in data.items()}
+                    elif isinstance(data, list):
+                        return [convert_bytes_keys(i) for i in data]
+                    elif isinstance(data, bytes):
+                        try:
+                            return data.decode('utf-8')  
+                        except UnicodeDecodeError:
+                            return base64.b64encode(data).decode()  
+                    else:
+                        return data
+
+                sanitized_data = convert_bytes_keys(cached_item["data"])
+
+
+                sanitized_timestamp = (
+                    cached_item["timestamp"].decode() 
+                    if isinstance(cached_item["timestamp"], bytes) 
+                    else cached_item["timestamp"]
+                )
+
                 subscribers = notifier.get_subscribers(patient_id, param_type)
                 
-                # Build the JSON message to be sent to the subscriber.
                 message = json.dumps({
                     "type": "get_parameters",
                     "param_type": param_type,
                     "status": "success",
                     "code": 200,
                     "message": "Data fetched successfully",
-                    "data": cached_item["data"],
-                    "timestamp": cached_item["timestamp"]
+                    "data": sanitized_data,
+                    "timestamp": sanitized_timestamp
                 })
-                
-                # Send the message to each subscribed websocket asynchronously.
+
                 for ws in subscribers:
                     asyncio.run_coroutine_threadsafe(
                         ws.send_text(message),
                         main_event_loop
                     )
-                # Mark the event as processed.
                 self.queue.task_done()
 
+
             except queue.Empty:
-                # No event in the queue; continue waiting.
+                continue
+            except Exception as e:
+                logger.error(f"Error in send_data worker: {str(e)}")
                 continue
 
     def shutdown(self):
-        """
-        Shutdown the SendDataManager by stopping the worker threads and shutting down the executor.
-        """
         self.running = False
         self.executor.shutdown(wait=True)
 
-# Global instance configuration and initialization.
 SEND_DATA_WORKERS = 5
 send_data_manager = SendDataManager(max_workers=SEND_DATA_WORKERS)

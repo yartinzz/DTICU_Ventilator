@@ -16,26 +16,11 @@ from config.settings import settings
 from config.logger import logger
 from app.matlab_engine.engine import ENGINE_POOL
 
-# Create a ThreadPoolExecutor with the number of workers equal to the MATLAB engine pool size.
 MATLAB_EXECUTOR = ThreadPoolExecutor(max_workers=settings.MATLAB_ENGINE_POOL_SIZE)
 
 async def run_matlab_analysis(params):
-    """
-    Run MATLAB analysis asynchronously.
-    
-    This function wraps a synchronous MATLAB call in an asynchronous context by delegating
-    the computation to a ThreadPoolExecutor. It extracts the necessary parameters and invokes
-    the MATLAB analysis function.
-    
-    Parameters:
-        params (dict): Dictionary containing 'pressureData', 'flowData', and 'deltaPEEP'.
-        
-    Returns:
-        result_dict: The result of the MATLAB analysis, or None if an error occurs.
-    """
     loop = asyncio.get_event_loop()
     try:
-        # Execute the MATLAB analysis in the MATLAB thread pool asynchronously.
         result_dict = await loop.run_in_executor(
             MATLAB_EXECUTOR,
             _sync_matlab_wrapper,

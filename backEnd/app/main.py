@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 """
 Author: yadian zhao
@@ -39,6 +40,7 @@ if __name__ == "__main__":
     monitor_thread = start_monitoring_active_params()
     
     # Start the binlog listener in a separate daemon thread.
+
     binlog_thread = threading.Thread(
         target=binlog_listener,
         name="BinlogListener",
@@ -47,6 +49,7 @@ if __name__ == "__main__":
     binlog_thread.start()
     
     # Configure the Uvicorn server with FastAPI application settings.
+
     config = uvicorn.Config(
         fastapp,
         host="0.0.0.0",
@@ -56,6 +59,7 @@ if __name__ == "__main__":
         ws_ping_timeout=3
     )
     
+
     # Initialize the Uvicorn server with the given configuration.
     server = uvicorn.Server(config)
     try:
@@ -63,4 +67,5 @@ if __name__ == "__main__":
         main_event_loop.run_until_complete(server.serve())
     finally:
         # Shutdown the send data manager gracefully on exit.
+
         send_data_manager.shutdown()

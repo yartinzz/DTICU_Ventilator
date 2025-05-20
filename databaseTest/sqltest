@@ -1,0 +1,310 @@
+CREATE TABLE patient_records (
+  record_id INT AUTO_INCREMENT PRIMARY KEY,
+  patient_id INT NOT NULL,
+  record_type VARCHAR(50) NOT NULL,
+  summary_content TEXT DEFAULT NULL,
+  detail_content JSON NOT NULL,
+  department VARCHAR(255) DEFAULT NULL,
+  ward VARCHAR(255) DEFAULT NULL,
+  doctor_name VARCHAR(255) NOT NULL,
+  appendix_url TEXT DEFAULT NULL,
+  created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_patient_type_time (patient_id, record_type, created_time),
+  FOREIGN KEY (patient_id) REFERENCES patient_info(patient_id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
+CREATE TABLE IF NOT EXISTS patient_info (
+    patient_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    age INT NOT NULL,
+    gender VARCHAR(10) NOT NULL,
+    admission_date DATETIME NOT NULL,
+    notes TEXT
+)
+ALTER TABLE patient_info
+ADD COLUMN ethnicity VARCHAR(255) DEFAULT NULL,
+ADD COLUMN marital_status VARCHAR(50) DEFAULT NULL,
+ADD COLUMN birth_date DATE DEFAULT NULL,
+ADD COLUMN admission_count INT DEFAULT 0;
+
+
+
+
+CREATE TABLE IF NOT EXISTS ella_sensor_params (
+    record_id INT AUTO_INCREMENT PRIMARY KEY,
+    patient_id INT NOT NULL,
+    collection_time DATETIME NOT NULL,
+    device_type VARCHAR(50) NOT NULL,
+    parameters JSON NOT NULL CHECK (JSON_VALID(parameters)),
+    FOREIGN KEY (patient_id) REFERENCES patient_info(patient_id),
+    INDEX idx_collection_time (collection_time)
+);
+
+
+
+CREATE TABLE patient_vital_snapshot (
+  snapshot_id          BIGINT       NOT NULL AUTO_INCREMENT,
+  patient_id           CHAR(36)     NOT NULL,
+  record_time          DATETIME(6)  NOT NULL,
+
+  current_peep         SMALLINT     NOT NULL,
+  recommended_peep     SMALLINT     NOT NULL,
+  blood_glucose        DECIMAL(5,2) NOT NULL,
+  ph                   DECIMAL(4,3) NOT NULL,
+  insulin_sensitivity  DECIMAL(6,4) NOT NULL,
+  total_breaths        INT          NOT NULL,
+  abnormal_breaths     INT          NOT NULL,
+
+  created_at           TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (snapshot_id),
+  UNIQUE KEY uq_patient_time (patient_id, record_time),
+
+  -- 下面这些就是把常用索引“写在表属性里”
+  KEY idx_patient_time       (patient_id, record_time),
+  KEY idx_current_peep       (current_peep),
+  KEY idx_recommended_peep   (recommended_peep)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4;
+
+
+
+
+
+-- 如果表已存在，先删除
+DROP TABLE IF EXISTS `ecg_model_output`;
+
+-- 重建表结构
+CREATE TABLE `ecg_model_output` (
+  `id`               INT           NOT NULL AUTO_INCREMENT COMMENT '主键，自增',
+  `patient_id`       INT           NOT NULL             COMMENT '患者 ID，关联 patients 表',
+  `collection_time`  DATETIME      NOT NULL             COMMENT '数据收集时间，统一用 collection_time',
+  `analysis_data`    JSON          NOT NULL             COMMENT 'ECG 模型输出（QRS 信息等）',
+  `vitals_data`      JSON          NOT NULL             COMMENT '生理参数快照（血压、心率等）',
+  PRIMARY KEY (`id`),
+  INDEX `idx_patient_time` (`patient_id`, `collection_time`)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+
+
+
+
+
+INSERT INTO patient_info 
+  (name, age, gender, admission_date, notes, ethnicity, marital_status, birth_date, admission_count)
+VALUES
+  ('王伟', 34, '男', '2023-07-20 10:30:00', '高血压', '汉族', '已婚', '1989-05-12', 1),
+  ('李娜', 28, '女', '2023-07-21 09:15:00', '糖尿病', '汉族', '未婚', '1995-03-08', 2);
+
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(33, 'diagnosis', '高血压确诊', 
+'{"患者自述":"间断性头痛3个月，近期加重伴随耳鸣","临床诊断":"原发性高血压2级","结论":"高血压确诊","建议":"低盐饮食，每日监测血压，服用苯磺酸氨氯地平"}',
+'心血管内科', '3楼A区', '张伟'),
+(33, 'diagnosis', '糖尿病筛查', 
+'{"患者自述":"多饮多食伴体重下降","临床诊断":"2型糖尿病","结论":"糖尿病确诊","建议":"二甲双胍0.5g bid，每周血糖监测"}',
+'内分泌科', '3楼A区', '李明');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(33, 'imaging', '胸部CT异常', 
+'{"检查类型":"CT平扫","检查部位":"胸部","影像所见":"双肺下叶磨玻璃样影，纵隔淋巴结肿大","结论":"肺炎可能性大，建议抗炎后复查"}',
+'放射科', NULL, '王芳'),
+(33, 'imaging', '膝关节MRI', 
+'{"检查类型":"MRI增强","检查部位":"右膝关节","影像所见":"半月板III度损伤，关节腔积液","结论":"半月板撕裂需手术"}',
+'骨科', NULL, '陈建国');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(33, 'surgery', '膝关节置换术', 
+'{"手术名称":"右膝关节置换术","手术日期":"2023-08-15","过程描述":"全麻下行关节清理+假体植入","手术结果":"假体位置良好，出血50ml","术后医嘱":"预防性使用抗生素，术后3天开始康复训练"}',
+'骨科', '5楼手术中心', '赵卫国'),
+(33, 'surgery', '腹腔镜胆囊切除', 
+'{"手术名称":"腹腔镜胆囊切除术","手术日期":"2023-03-10","过程描述":"三孔法顺利切除化脓胆囊","手术结果":"手术顺利，留置引流管","术后医嘱":"低脂饮食，引流管护理"}',
+'普外科', '5楼手术中心', '周涛');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(33, 'nursing', '术后生命体征', 
+'{"护理时间":"2023-08-15 14:00","护理项目":"术后监护","执行护士":"王雪","具体内容":"T 36.8℃，P 88次/分，R 18次/分，BP 130/85mmHg，切口干燥无渗血"}',
+'骨科', '5楼手术中心', '赵卫国'),
+(33, 'nursing', '血糖监测', 
+'{"护理时间":"2023-08-16 07:00","护理项目":"血糖检测","执行护士":"李晓萌","具体内容":"空腹血糖8.2mmol/L，注射胰岛素4单位，指导糖尿病饮食"}',
+'内分泌科', '3楼A区', '李明');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(33, 'infusion', '术后补液治疗', 
+'{"药品名称":"0.9%氯化钠","剂量":"500ml","输液时间":"2023-08-15 15:00-17:00","输液速度":"60滴/分","护士观察":"穿刺部位无红肿，患者无不适"}',
+'骨科', '5楼手术中心', '赵卫国'),
+(33, 'infusion', '抗生素治疗', 
+'{"药品名称":"头孢曲松钠","剂量":"2g","输液时间":"2023-08-16 09:00-09:40","输液速度":"40滴/分","护士观察":"皮试阴性，输液过程顺利"}',
+'骨科', '5楼手术中心', '赵卫国');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(33, 'medication', '降压药处方', 
+'{"药品名称":"苯磺酸氨氯地平","剂量":"5mg","用法":"每日一次口服","用药时间":"长期","注意事项":"监测血压，警惕下肢水肿"}',
+'心血管内科', '3楼A区', '张伟'),
+(33, 'medication', '降糖药使用', 
+'{"药品名称":"二甲双胍缓释片","剂量":"0.5g","用法":"每日两次餐中服","用药时间":"2023-08-16起","注意事项":"注意胃肠道反应，禁酒"}',
+'内分泌科', '3楼A区', '李明');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(34, 'diagnosis', '急性胃肠炎', 
+'{"患者自述":"呕吐伴腹泻1天，体温38.2℃","临床诊断":"急性胃肠炎","结论":"细菌性感染","建议":"禁食6小时，左氧氟沙星抗感染治疗"}',
+'消化内科', '2楼B区', '孙丽华'),
+(34, 'diagnosis', '肋骨骨折', 
+'{"患者自述":"车祸后右侧胸痛2小时","临床诊断":"右侧第5-6肋骨骨折","结论":"闭合性骨折","建议":"胸带固定，止痛治疗"}',
+'急诊科', '2楼B区', '刘强');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(34, 'imaging', '腹部超声', 
+'{"检查类型":"超声","检查部位":"肝胆胰脾","影像所见":"胆囊壁毛糙，肝内胆管无扩张","结论":"慢性胆囊炎"}',
+'超声科', NULL, '吴敏'),
+(34, 'imaging', '胸部X光', 
+'{"检查类型":"X线","检查部位":"胸部正侧位","影像所见":"右侧第5-6肋骨皮质不连续","结论":"肋骨骨折确诊"}',
+'放射科', NULL, '王芳');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(34, 'surgery', '骨折内固定术', 
+'{"手术名称":"肋骨切开复位内固定","手术日期":"2023-07-20","过程描述":"全麻下置入钛合金接骨板","手术结果":"复位良好，出血100ml","术后医嘱":"呼吸训练，预防肺炎"}',
+'胸外科', '5楼手术中心', '郑建国'),
+(34, 'surgery', '阑尾切除术', 
+'{"手术名称":"腹腔镜阑尾切除","手术日期":"2022-12-05","过程描述":"急诊手术切除化脓阑尾","手术结果":"手术成功，留置引流","术后医嘱":"流质饮食，伤口换药"}',
+'普外科', '5楼手术中心', '周涛');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(34, 'nursing', '胸带护理', 
+'{"护理时间":"2023-07-21 08:30","护理项目":"胸带调整","执行护士":"张婷婷","具体内容":"调整胸带松紧度，指导咳嗽时按压固定"}',
+'胸外科', '4楼C区', '郑建国'),
+(34, 'nursing', '疼痛评估', 
+'{"护理时间":"2023-07-20 22:00","护理项目":"疼痛管理","执行护士":"李晓萌","具体内容":"NRS评分4分，给予曲马多50mg肌注"}',
+'胸外科', '4楼C区', '郑建国');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(34, 'infusion', '补液治疗', 
+'{"药品名称":"葡萄糖氯化钠","剂量":"1000ml","输液时间":"2023-07-20 15:30-19:30","输液速度":"80滴/分","护士观察":"尿量恢复至50ml/h"}',
+'急诊科', '2楼B区', '刘强'),
+(34, 'infusion', '营养支持', 
+'{"药品名称":"复方氨基酸","剂量":"500ml","输液时间":"2023-07-21 10:00-13:00","输液速度":"30滴/分","护士观察":"无过敏反应，穿刺点无渗出"}',
+'胸外科', '4楼C区', '郑建国');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(34, 'medication', '抗生素治疗', 
+'{"药品名称":"左氧氟沙星","剂量":"0.5g","用法":"每日一次静滴","用药时间":"2023-07-20-07-25","注意事项":"避光输注，监测肾功能"}',
+'消化内科', '2楼B区', '孙丽华'),
+(34, 'medication', '止痛药处方', 
+'{"药品名称":"布洛芬缓释胶囊","剂量":"300mg","用法":"每12小时一次","用药时间":"疼痛时服用","注意事项":"餐后服用，警惕消化道出血"}',
+'胸外科', '4楼C区', '郑建国');
+  
+
+
+
+INSERT INTO patient_info 
+  (name, age, gender, admission_date, notes, ethnicity, marital_status, birth_date, admission_count)
+VALUES
+  ('Wang Wei', 34, 'Male', '2023-07-20 10:30:00', 'Hypertension', 'Han', 'Married', '1989-05-12', 1),
+  ('Li Na', 28, 'Female', '2023-07-21 09:15:00', 'Diabetes', 'Han', 'Unmarried', '1995-03-08', 2);
+
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(18, 'diagnosis', 'Hypertension Diagnosed', 
+'{"Patient Complaint":"Intermittent headache for 3 months, recently worsened with tinnitus","Clinical Diagnosis":"Primary Hypertension Stage 2","Conclusion":"Hypertension Confirmed","Recommendation":"Low-salt diet, daily blood pressure monitoring, take Amlodipine Besylate"}',
+'Cardiology', '3rd Floor, Area A', 'Zhang Wei'),
+(18, 'diagnosis', 'Diabetes Screening', 
+'{"Patient Complaint":"Excessive thirst and hunger with weight loss","Clinical Diagnosis":"Type 2 Diabetes","Conclusion":"Diabetes Confirmed","Recommendation":"Metformin 0.5g bid, weekly blood sugar monitoring"}',
+'Endocrinology', '3rd Floor, Area A', 'Li Ming');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(18, 'imaging', 'Abnormal Chest CT', 
+'{"Examination Type":"Non-contrast CT","Examined Area":"Chest","Findings":"Ground-glass opacities in both lower lung lobes, enlarged mediastinal lymph nodes","Conclusion":"High likelihood of pneumonia; recommend anti-inflammatory treatment and recheck"}',
+'Radiology', NULL, 'Wang Fang'),
+(18, 'imaging', 'Knee Joint MRI', 
+'{"Examination Type":"Contrast-enhanced MRI","Examined Area":"Right Knee Joint","Findings":"Grade III meniscus injury, joint effusion","Conclusion":"Meniscus tear requires surgery"}',
+'Orthopedics', NULL, 'Chen Jianguo');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(18, 'surgery', 'Knee Replacement Surgery', 
+'{"Surgery Name":"Right Knee Replacement Surgery","Surgery Date":"2023-08-15","Procedure Description":"Joint debridement and prosthesis implantation under general anesthesia","Surgery Outcome":"Proper prosthesis positioning, 50ml blood loss","Postoperative Instructions":"Prophylactic antibiotics, begin rehab 3 days after surgery"}',
+'Orthopedics', '5th Floor Surgery Center', 'Zhao Weiguo'),
+(18, 'surgery', 'Laparoscopic Cholecystectomy', 
+'{"Surgery Name":"Laparoscopic Cholecystectomy","Surgery Date":"2023-03-10","Procedure Description":"Three-port technique to successfully remove the suppurative gallbladder","Surgery Outcome":"Surgery successful, drainage tube placed","Postoperative Instructions":"Low-fat diet, care for drainage tube"}',
+'General Surgery', '5th Floor Surgery Center', 'Zhou Tao');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(18, 'nursing', 'Postoperative Vital Signs', 
+'{"Nursing Time":"2023-08-15 14:00","Nursing Item":"Postoperative Monitoring","Attending Nurse":"Wang Xue","Details":"Temperature 36.8℃, Pulse 88 bpm, Respiration 18 breaths/min, BP 130/85 mmHg, incision dry without bleeding"}',
+'Orthopedics', '5th Floor Surgery Center', 'Zhao Weiguo'),
+(18, 'nursing', 'Blood Sugar Monitoring', 
+'{"Nursing Time":"2023-08-16 07:00","Nursing Item":"Blood Glucose Test","Attending Nurse":"Li Xiaomeng","Details":"Fasting blood sugar 8.2 mmol/L, insulin injection 4 units, diabetic dietary guidance"}',
+'Endocrinology', '3rd Floor, Area A', 'Li Ming');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(18, 'infusion', 'Postoperative Fluid Therapy', 
+'{"Medication Name":"0.9% Sodium Chloride","Dosage":"500ml","Infusion Time":"2023-08-15 15:00-17:00","Infusion Rate":"60 drops/min","Nurse Observation":"No redness or swelling at puncture site, patient comfortable"}',
+'Orthopedics', '5th Floor Surgery Center', 'Zhao Weiguo'),
+(18, 'infusion', 'Antibiotic Therapy', 
+'{"Medication Name":"Ceftriaxone Sodium","Dosage":"2g","Infusion Time":"2023-08-16 09:00-09:40","Infusion Rate":"40 drops/min","Nurse Observation":"Negative skin test, infusion went smoothly"}',
+'Orthopedics', '5th Floor Surgery Center', 'Zhao Weiguo');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(18, 'medication', 'Antihypertensive Prescription', 
+'{"Medication Name":"Amlodipine Besylate","Dosage":"5mg","Usage":"Once daily orally","Duration":"Long-term","Precautions":"Monitor blood pressure, watch for lower limb edema"}',
+'Cardiology', '3rd Floor, Area A', 'Zhang Wei'),
+(18, 'medication', 'Antidiabetic Medication Usage', 
+'{"Medication Name":"Metformin Extended-Release","Dosage":"0.5g","Usage":"Twice daily with meals","Start Date":"Starting 2023-08-16","Precautions":"Monitor gastrointestinal reactions, avoid alcohol"}',
+'Endocrinology', '3rd Floor, Area A', 'Li Ming');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(19, 'diagnosis', 'Acute Gastroenteritis', 
+'{"Patient Complaint":"Vomiting with diarrhea for 1 day, temperature 38.2℃","Clinical Diagnosis":"Acute Gastroenteritis","Conclusion":"Bacterial infection","Recommendation":"NPO for 6 hours, Levofloxacin for antibacterial treatment"}',
+'Gastroenterology', '2nd Floor, Area B', 'Sun Lihua'),
+(19, 'diagnosis', 'Rib Fracture', 
+'{"Patient Complaint":"Right chest pain for 2 hours following a car accident","Clinical Diagnosis":"Fracture of right 5th-6th ribs","Conclusion":"Closed fracture","Recommendation":"Chest strap immobilization, pain management"}',
+'Emergency Department', '2nd Floor, Area B', 'Liu Qiang');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(19, 'imaging', 'Abdominal Ultrasound', 
+'{"Examination Type":"Ultrasound","Examined Area":"Liver, Gallbladder, Pancreas, Spleen","Findings":"Gallbladder wall rough, no dilation of intrahepatic bile ducts","Conclusion":"Chronic cholecystitis"}',
+'Ultrasound Department', NULL, 'Wu Min'),
+(19, 'imaging', 'Chest X-ray', 
+'{"Examination Type":"X-ray","Examined Area":"Chest (PA and lateral views)","Findings":"Discontinuity of cortex in right 5th-6th ribs","Conclusion":"Rib fracture confirmed"}',
+'Radiology', NULL, 'Wang Fang');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(19, 'surgery', 'Internal Fixation for Fracture', 
+'{"Surgery Name":"Rib Open Reduction and Internal Fixation","Surgery Date":"2023-07-20","Procedure Description":"Titanium alloy bone plate insertion under general anesthesia","Surgery Outcome":"Good reduction, 100ml blood loss","Postoperative Instructions":"Respiratory exercises, pneumonia prevention"}',
+'Thoracic Surgery', '5th Floor Surgery Center', 'Zheng Jianguo'),
+(19, 'surgery', 'Appendectomy', 
+'{"Surgery Name":"Laparoscopic Appendectomy","Surgery Date":"2022-12-05","Procedure Description":"Emergency removal of suppurative appendix","Surgery Outcome":"Successful surgery, drainage tube placed","Postoperative Instructions":"Liquid diet, wound dressing change"}',
+'General Surgery', '5th Floor Surgery Center', 'Zhou Tao');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(19, 'nursing', 'Chest Strap Care', 
+'{"Nursing Time":"2023-07-21 08:30","Nursing Item":"Chest Strap Adjustment","Attending Nurse":"Zhang Tingting","Details":"Adjusted chest strap tightness, instructed to press during coughing for stability"}',
+'Thoracic Surgery', '4th Floor, Area C', 'Zheng Jianguo'),
+(19, 'nursing', 'Pain Assessment', 
+'{"Nursing Time":"2023-07-20 22:00","Nursing Item":"Pain Management","Attending Nurse":"Li Xiaomeng","Details":"NRS score 4, administered 50mg Tramadol intramuscular injection"}',
+'Thoracic Surgery', '4th Floor, Area C', 'Zheng Jianguo');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(19, 'infusion', 'Fluid Replacement Therapy', 
+'{"Medication Name":"Glucose Sodium Chloride","Dosage":"1000ml","Infusion Time":"2023-07-20 15:30-19:30","Infusion Rate":"80 drops/min","Nurse Observation":"Urine output restored to 50ml/h"}',
+'Emergency Department', '2nd Floor, Area B', 'Liu Qiang'),
+(19, 'infusion', 'Nutritional Support', 
+'{"Medication Name":"Compound Amino Acids","Dosage":"500ml","Infusion Time":"2023-07-21 10:00-13:00","Infusion Rate":"30 drops/min","Nurse Observation":"No allergic reaction, no exudation at puncture site"}',
+'Thoracic Surgery', '4th Floor, Area C', 'Zheng Jianguo');
+
+INSERT INTO patient_records (patient_id, record_type, summary_content, detail_content, department, ward, doctor_name) VALUES
+(19, 'medication', 'Antibiotic Therapy', 
+'{"Medication Name":"Levofloxacin","Dosage":"0.5g","Usage":"Once daily IV drip","Medication Period":"2023-07-20 to 2023-07-25","Precautions":"Protect from light during infusion, monitor renal function"}',
+'Gastroenterology', '2nd Floor, Area B', 'Sun Lihua'),
+(19, 'medication', 'Analgesic Prescription', 
+'{"Medication Name":"Ibuprofen SR Capsule","Dosage":"300mg","Usage":"Every 12 hours","Usage Timing":"Take when in pain","Precautions":"Take after meals, watch for gastrointestinal bleeding"}',
+'Thoracic Surgery', '4th Floor, Area C', 'Zheng Jianguo');
+
+
+
+\\file\Usersy$\yzh465\Home\Downloads\pandoc-3.6.4\pandoc.exe DTICU.tex -o output.docx -w docx   --reference-doc softwarex-osp-template.docx   --bibliography=references.bib   --citeproc    --csl softwarex.csl
+
+ --filter pandoc-crossref 

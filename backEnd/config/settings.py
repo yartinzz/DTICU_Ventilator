@@ -32,10 +32,10 @@ class Settings(BaseSettings):
     SAMPLING_RATE: int = 125
     
     # Number of MATLAB engine instances to maintain in the pool.
-    MATLAB_ENGINE_POOL_SIZE: int = 5 
+    MATLAB_ENGINE_POOL_SIZE: int = 200
     
     # Maximum allowed WebSocket connections.
-    MAX_CONNECTIONS: int = 10
+    MAX_CONNECTIONS: int = 1000
     
 
 # Create a global settings instance to be used across the application.

@@ -7,15 +7,17 @@ Description: This module sets up the FastAPI websocket endpoint and router.
              ensuring server capacity limits, and delegating connection handling
              to the designated handler function.
 """
-
 import asyncio
 import threading
-from fastapi import FastAPI, WebSocket
+from typing import Optional
+from fastapi import FastAPI, HTTPException, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+
 
 from app.websocket.handlers import handle_user
 from config.settings import settings
 from config.logger import logger
+from app.database.queries import *
 
 # Lock to protect access to the user ID counter.
 user_id_lock = threading.Lock()
@@ -68,13 +70,62 @@ async def websocket_endpoint(websocket: WebSocket):
         return
 
     try:
-        # Create an asynchronous task to handle the user's websocket connection.
         task = asyncio.create_task(handle_user(websocket, user_id))
-        # Store the task in the user_threads dictionary for tracking.
         user_threads[user_id] = task
-        # Await the completion of the task handling the websocket connection.
         await task
     finally:
-        # Once the connection is closed, remove the user's task from the tracking dictionary.
         user_threads.pop(user_id, None)
         logger.info(f"Released resources for user {user_id}")
+
+
+
+@router.get("/patients")
+def get_patients():
+    return fetch_patients()
+
+@router.get("/patients/{patient_id}")
+def get_patient(patient_id: int):
+    patient = fetch_patient_by_id(patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    return patient
+
+@router.get("/patients/{patient_id}/records")
+def get_patient_records_route(
+    patient_id: int,
+    record_type: Optional[str] = Query(None, description="type"),
+    start_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="YYYY-MM-DD")
+):
+
+    if record_type:
+        records = fetch_patient_records_by_type(patient_id, record_type, start_date, end_date)
+        return records
+    else:
+        all_records = fetch_patient_records(patient_id)
+        return all_records
+
+@router.get("/patients/{patient_id}/records/{record_id}")
+def get_record_detail(patient_id: int, record_id: int):
+    record = fetch_patient_record_detail(record_id)
+    if not record or record["patient_id"] != patient_id:
+        raise HTTPException(status_code=404, detail="Record not found")
+    return record
+
+@router.put("/patients/{patient_id}")
+def update_patient(patient_id: int, patient_data: dict):
+    rowcount = update_patient_info(patient_id, patient_data)
+    if rowcount == 0:
+        raise HTTPException(status_code=404, detail="Patient not found or no change")
+    return {"msg": "Patient info updated successfully"}
+
+
+@router.get("/patients/{patient_id}/peep_history")
+def get_peep_history(patient_id: int):
+    history = fetch_peep_history(patient_id)
+    if history is None:
+        raise HTTPException(status_code=404, detail="Peep history not found")
+    return {"patient_id": patient_id, "history_peep": history}
+
+
+fastapp.include_router(router)
