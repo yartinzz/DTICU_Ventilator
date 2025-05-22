@@ -1,33 +1,67 @@
-# DTICU Ventilator
+# Project Setup and Installation Guide
 
-## Disclaimer
-This is the first version of the project. Many parts are incomplete, and significant adjustments are needed for proper installation and testing.
+## 1. Frontend
 
-## Overview
-The DTICU Ventilator project is designed for advanced medical applications. At this stage, it serves as a prototype that integrates a custom backend with MATLAB interfaces and a front-end built on Toolpad Core. Installation and testing require manual configuration and port mapping adjustments since the software is tested on a virtual machine.
+### Setup
+- Install **Toolpad Core** and required **Node.js libraries**.
+- Follow the [official Toolpad Core documentation](https://mui.com/toolpad/core/) to correctly configure the framework.
 
-## Installation & Setup
+### Project Structure
+- The `app/layout.tsx` file defines the root layout. You can customize the navigation bar as needed.
+- Pages are located under the `app/(dashboard)/` directory. You may add or modify pages based on your needs.
 
-### 1. Frontend: Install Toolpad Core and Necessary Node.js Libraries
-- Use Toolpad Core as the frontend framework.
-- Install all the required Node.js libraries. Make sure to follow the official documentation for Toolpad Core to set up the framework properly.
-- Verify that all dependencies are installed.
+### Existing Pages
+- `glycemia` and `asynchrony` pages currently display static content without any functional features.
+- `ventilator/peep`: This page allows PEEP selection, dynamically displays ventilator-related data, and invokes MATLAB modules for real-time prediction.
+- `ventilator/ventmode`: This page enables ventilator mode selection, displays real-time ECG, EMG, EEG, and EIG data, and guides ventilator settings using physiological parameters.
+- `ECG`: Currently not implemented.
+- `sensorpage`: Displays data from custom sensors, segmented by breathing cycles, showing estimated parameters like lung compliance and airway resistance.
 
-### 2. Port Configuration
-- Adjust the ports used by the frontend and backend services.
-- Since the software is tested on a virtual machine, ensure that the port mapping is correctly configured.
+### Development
+- Update frontend HTTP/WebSocket addresses to match your backend configuration.
+- If you're using npm, navigate to the `frontEnd` directory and run:
+  ```bash
+  npm run dev
+  ```
+  By default, the frontend will run on `http://localhost:3000`.
 
-### 3. Configure the .env File
-- Create and configure your environment variables using a `.env` file.
+---
 
-### 4. Database and Interface Adjustments
-- Configure your database to match the specific requirements of your project. This includes setting up the necessary tables and schema.
-- Adjust the backend interfaces so that they correctly interact with your database.
-- Modify the MATLAB interface to work with your project’s data and processing needs.
+## 2. Backend
 
-## Notes
-- **First Version**: This version is experimental. Future iterations will address many of the current limitations.
-- **Testing**: Extensive testing in the virtual machine environment is required. Pay special attention to port mappings and network configurations.
+### Setup
+- Install all dependencies using:
+  ```bash
+  pip install -r requirements.txt
+  ```
+- MATLAB integration depends on `matlab.engine`. Please refer to the [official MATLAB documentation](https://www.mathworks.com/help/matlab/matlab_external/get-started-with-matlab-engine-for-python.html) for setup instructions.
+
+### Module Overview
+- **binlog**: Monitors MySQL binlog for database updates. Modify this module to support custom table structures.
+- **core**: Manages data cache, subscribers, and real-time parallel data dispatching.
+- **database**: Handles all database interactions. Customize SQL queries for your schema.
+- **matlab_engine**: Manages a pool of preloaded MATLAB engines for concurrent calls.
+- **routers**: Defines API routes. Modify or add new routes for custom functionality.
+- **services**: Interfaces with MATLAB functions. Adjust input/output to fit your MATLAB modules.
+- **websocket**: Manages WebSocket connections and responds to specific events.
+- **config**: Stores environment variables and basic settings.
+- **main.py**: Main entry point. By default, the server binds to `http://localhost:8000`.
+
+---
+
+## 3. Database
+
+- This project uses **MySQL**. If you prefer a different database system, adapt the logic in `binlog` and `database` modules accordingly.
+- Ensure that MySQL has the necessary permissions and configuration for binlog monitoring.
+
+---
+
+## 4. Device Integration
+
+- You can use any device or simulator to periodically push data to the database for testing purposes.
+
+---
 
 ## License
-This project is released under the MIT License.
+
+This project is open-sourced under the **MIT License**.

@@ -63,7 +63,6 @@ CREATE TABLE patient_vital_snapshot (
   PRIMARY KEY (snapshot_id),
   UNIQUE KEY uq_patient_time (patient_id, record_time),
 
-  -- 下面这些就是把常用索引“写在表属性里”
   KEY idx_patient_time       (patient_id, record_time),
   KEY idx_current_peep       (current_peep),
   KEY idx_recommended_peep   (recommended_peep)
@@ -74,10 +73,8 @@ CREATE TABLE patient_vital_snapshot (
 
 
 
--- 如果表已存在，先删除
 DROP TABLE IF EXISTS `ecg_model_output`;
 
--- 重建表结构
 CREATE TABLE `ecg_model_output` (
   `id`               INT           NOT NULL AUTO_INCREMENT COMMENT '主键，自增',
   `patient_id`       INT           NOT NULL             COMMENT '患者 ID，关联 patients 表',
@@ -302,9 +299,3 @@ INSERT INTO patient_records (patient_id, record_type, summary_content, detail_co
 (19, 'medication', 'Analgesic Prescription', 
 '{"Medication Name":"Ibuprofen SR Capsule","Dosage":"300mg","Usage":"Every 12 hours","Usage Timing":"Take when in pain","Precautions":"Take after meals, watch for gastrointestinal bleeding"}',
 'Thoracic Surgery', '4th Floor, Area C', 'Zheng Jianguo');
-
-
-
-\\file\Usersy$\yzh465\Home\Downloads\pandoc-3.6.4\pandoc.exe DTICU.tex -o output.docx -w docx   --reference-doc softwarex-osp-template.docx   --bibliography=references.bib   --citeproc    --csl softwarex.csl
-
- --filter pandoc-crossref 

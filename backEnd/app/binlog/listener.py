@@ -157,6 +157,7 @@ def binlog_listener():
                                 }
                             },
                             timestamp=collection_time.timestamp()
+                        )
                         
                         send_data_manager.add_event(
                             patient_id=patient_id,

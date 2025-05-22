@@ -186,7 +186,7 @@ export default function HomePage() {
                 }
               }
             } else {
-              console.error("Invalid parameter data format:", data.message);
+              console.log("Invalid parameter data format:", data.message);
             }
             return;
           }
