@@ -3,8 +3,7 @@
 ## 1. Frontend
 
 ### Setup
-- Install **Toolpad Core** and required **Node.js libraries**.
-- Follow the [official Toolpad Core documentation](https://mui.com/toolpad/core/introduction/) to correctly configure the framework.
+- Install **Toolpad Core** and all required **Node.js dependencies** as specified in the `package.json` and `package-lock.json`.
 
 ### Project Structure
 - The `app/layout.tsx` file defines the root layout. You can customize the navigation bar as needed.
@@ -19,7 +18,7 @@
 
 ### Development
 - Update frontend HTTP/WebSocket addresses to match your backend configuration.
-- If you're using npm, navigate to the `frontEnd` directory and run:
+- If you're using npm, navigate to the `frontend` directory and run:
   ```bash
   npm run dev
   ```

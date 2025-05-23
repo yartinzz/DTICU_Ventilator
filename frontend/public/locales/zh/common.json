@@ -1,0 +1,145 @@
+{
+    "Main": "主页面",
+    "Patient Records": "患者档案信息管理",
+    "Ventilation Module": "机械通气DT模块",
+    "PEEP Management": "PEEP选择与管理",
+    "Asynchrony Monitor": "人机不同步监测（ASYN）",
+    "Breath Mode Assessment": "呼吸机智能通气模式选择",
+    "Glycemia Module": "血糖管理DT模块（STAR）",
+    "Hemodynamics Module": "血流动力学DT模块",
+    "AI Assistant": "AI辅助模块",
+    "DTICU APP": "DTICU APP",
+
+
+
+    "Patient Profile Management": "患者档案信息管理",
+    "Select Patient": "选择患者",
+    "Gender": "性别",
+    "Ethnicity": "民族",
+    "Marital Status": "婚姻状况",
+    "Birth Date": "出生日期",
+    "Age": "年龄",
+    "Admission Date": "入院日期",
+    "Admission Count": "入院次数",
+    "Filter": "筛选",
+    "Start Date": "开始日期",
+    "End Date": "结束日期",
+    "Loading...": "加载中...",
+    "Time": "时间",
+    "No records available": "没有记录",
+    "Record Details": "记录详情",
+    "Close": "关闭",
+    "Please select a patient first!": "请先选择一个患者！",
+    "Patient info saved successfully": "患者信息保存成功",
+    "Diagnosis Records": "诊断记录",
+    "Imaging Records": "影像记录",
+    "Surgical Records": "手术记录",
+    "Nursing Records": "护理记录",
+    "Infusion Records": "输液记录",
+    "Medication Records": "用药记录",
+
+
+    "Suggested Best PEEP": "建议最佳 PEEP",
+    "Current PEEP": "当前 PEEP",
+    "Patient Selector": "患者选择器",
+
+
+    "Asynchrony Analysis": "自主呼吸与人机对抗分析",
+    "Rerun Analysis": "再次分析",
+    "AI Model Management": "AI 模型管理",
+    "Results:": "结果：",
+    "Breath number:": "正常呼吸次数：",
+    "Asynchrony breath:": "人机对抗呼吸次数：",
+    "Noise breath:": "非标准呼吸次数：",
+    "Total": "总呼吸次数",
+    "Asynchrony Index (AI):": "异步指数（AI）：",
+    "Graph:": "图表：",
+    "Breath Condition Distribution": "呼吸状态分布",
+    "Distribution": "分布",
+    "Respiratory Mechanics": "呼吸力学指标",
+    "Parameter": "参数类型",
+    "Median": "中位数",
+    "IQR": "四分位距（IQR）",
+    "5th-95th perc.": "5%-95% 分位",
+    "Min - Max": "最小-最大值范围",
+    "Normal": "正常呼吸周期",
+    "Asynchrony": "异步呼吸周期",
+    "Noise": "非标准呼吸周期",
+
+    "Please select": "请选择",
+    "testPatient1": "测试患者1",
+    "patient": "患者",
+    "Blood glucose levels (last 12 hours)": "血糖水平（过去12小时）",
+    "Actual": "实际值",
+    "Predicted Min": "预测最小值",
+    "Predicted Max": "预测最大值",
+    "mg/dL": "毫克/分升",
+    "Insulin Sensitivity (last 12 hours)": "胰岛素敏感性（过去12小时）",
+    "Insulin Sensitivity": "胰岛素敏感性",
+    "Rate": "注射速率",
+    "Concentration": "注射浓度",
+    "Route": "途径",
+    "Constant": "是否持续",
+    "Yes": "是",
+    "No": "否",
+    "Maintenance Nutrition": "基础营养",
+    "glucose": "葡萄糖",
+    "Enteral Nutrition": "肠内营养",
+    "Peptamen AF": "Peptamen AF",
+    "Insulin Infusion": "胰岛素注射",
+    "Dextrose Shot": "葡萄糖计量",
+    "Size": "剂量",
+    "Carbs": "碳水化合物",
+    "Calories": "热量",
+    "Administered at": "注射时间",
+    "Type": "药物类型",
+
+
+    "patientSelector": {
+        "select": "选择病人",
+        "none": "无",
+        "patientItem": "{{id}} - {{name}}"
+      },
+      "chart": {
+        "ecgWaveform": "心电（ECG）",
+        "eegWaveform": "脑电（EEG）",
+        "impWaveform": "阻抗（IMP）",
+        "emgWaveform": "肌电（EMG）",
+        "rPeak": "QRS波 R峰定位",
+        "rFeature": "R波特征强化"
+      },
+      "suggestMode": {
+        "title": "建议通气模式",
+        "optimal": "OPTIMAL"
+      },
+      "baseInfo": {
+        "title": "生理信息"
+      },
+      "demographics": {
+        "title": "基础信息",
+        "age": "年龄",
+        "gender": "性别",
+        "height": "身高",
+        "weight": "体重"
+      },
+      "vitals": {
+        "title": "生命体征信息",
+        "sap": "收缩压",
+        "dap": "舒张压",
+        "map": "平均动脉压",
+        "hr": "心率",
+        "rr": "呼吸频率",
+        "spo2": "血氧饱和度",
+        "t": "体温",
+        "po2": "血氧分压",
+        "pco2": "二氧化碳分压",
+        "ph": "pH值"
+      },
+      "mode": {
+        "O": "OFFLINE 脱机模式",
+        "S": "CPAP/PSV 自主模式",
+        "A": "PRVC‑SIMV/PSV 辅助模式",
+        "C": "PRVC 控制模式"
+      }
+}
+  
