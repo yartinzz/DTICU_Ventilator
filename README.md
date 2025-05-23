@@ -1,5 +1,18 @@
 # Project Setup and Installation Guide
 
+
+### Update (May 22, 2025)
+
+- Due to the limitation that the **MATLAB Engine** cannot be containerized, directly running the backend within a Docker container results in failure to invoke MATLAB-related services. 
+
+- As a temporary workaround, the MATLAB Engine must still be installed manually using the official method:
+
+```bash
+cd "MATLABROOT/extern/engines/python" && python setup.py install
+```
+
+- A future release is planned to migrate to MATLAB Compiler to generate standalone binaries, which will make full Docker support possible.
+
 ## 1. Frontend
 
 ### Setup
