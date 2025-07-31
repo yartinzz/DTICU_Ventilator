@@ -14,7 +14,8 @@ import {
 import ReactECharts from 'echarts-for-react';
 
 import { Divider } from '@mui/material';
-import { useTranslation } from '@/node_modules/react-i18next';
+import { useTranslation } from 'react-i18next';
+
 
 export default function GlycemiaPage() {
 

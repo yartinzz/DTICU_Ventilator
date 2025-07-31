@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python 
 """
 Author: yadian zhao
 Institution: Canterbury University
-Description: This module listens to MySQL binlog events (specifically for pressure_flow_params and ecg_params tables),
-             processes incoming data rows, updates the data cache, triggers data sending events, and monitors active parameters.
+Description: This module listens to MySQL binlog events (specifically for pressure_flow_params, ecg_params, 
+             mepap_sensor_params and other tables), processes incoming data rows, updates the data cache, 
+             triggers data sending events, and monitors active parameters.
 """
 
 
@@ -90,14 +91,217 @@ def start_monitoring_active_params():
     return monitor_thread
 
 
+def process_pressure_flow(values):
+    param_type = "pressure_flow"
+    raw_params = values["parameters"]
+    
+    decoded_params = {
+        key.decode('utf-8'): {
+            sub_key.decode('utf-8'): sub_val if not isinstance(sub_val, bytes)
+            else sub_val.decode('utf-8')
+            for sub_key, sub_val in value.items()
+        }
+        for key, value in raw_params.items()
+    }
+
+    pressure_values = [float(v) for v in decoded_params["pressure"]["values"]]
+    flow_values = [float(v) for v in decoded_params["flow"]["values"]]
+    
+    data = {
+        "pressure": {
+            "unit": decoded_params["pressure"]["unit"],
+            "values": pressure_values
+        },
+        "flow": {
+            "unit": decoded_params["flow"]["unit"],
+            "values": flow_values
+        }
+    }
+    
+    return param_type, data
+
+def process_ecg(values):
+    param_type = "ECG"
+    raw_params = values["parameters"]
+    
+    decoded_params = {
+        key.decode('utf-8'): {
+            sub_key.decode('utf-8'): sub_val if not isinstance(sub_val, bytes)
+            else sub_val.decode('utf-8')
+            for sub_key, sub_val in value.items()
+        }
+        for key, value in raw_params.items()
+    }
+    
+    ecg_values = [float(v) for v in decoded_params["ecg"]["values"]]
+    emg_values = [float(v) for v in decoded_params["emg"]["values"]]
+    impedance_values = [float(v) for v in decoded_params["impedance"]["values"]]
+    eeg_values = [float(v) for v in decoded_params["eeg"]["values"]]
+    
+    data = {
+        "ecg": {
+            "unit": decoded_params["ecg"]["unit"],
+            "values": ecg_values
+        },
+        "emg": {
+            "unit": decoded_params["emg"]["unit"],
+            "values": emg_values
+        },
+        "impedance": {
+            "unit": decoded_params["impedance"]["unit"],
+            "values": impedance_values
+        },
+        "eeg": {
+            "unit": decoded_params["eeg"]["unit"],
+            "values": eeg_values
+        }
+    }
+    
+    return param_type, data
+
+def process_ella_sensor(values):
+    param_type = "breath_cycle"
+    raw_params = values["parameters"]
+    
+    if isinstance(raw_params, dict):
+        decoded_params = raw_params
+    elif isinstance(raw_params, bytes):
+        decoded_params = json.loads(raw_params.decode('utf-8'))
+    elif isinstance(raw_params, str):
+        decoded_params = json.loads(raw_params)
+    else:
+        raise ValueError("Unsupported type for parameters in ella_sensor_params")
+    
+    return param_type, decoded_params
+
+def process_mepap_sensor(values):
+    """
+    Process MePAP sensor data from the binlog event.
+    
+    Args:
+        values: Dictionary containing the row values from mepap_sensor_params table
+        
+    Returns:
+        tuple: (param_type, data) where param_type is "MePAP" and data contains 
+               the expected and actual pressure values
+    """
+    param_type = "MePAP"
+    raw_params = values["parameters"]
+    
+    # Handle different parameter formats (dict, bytes, string)
+    if isinstance(raw_params, dict):
+        decoded_params = raw_params
+    elif isinstance(raw_params, bytes):
+        decoded_params = json.loads(raw_params.decode('utf-8'))
+    elif isinstance(raw_params, str):
+        decoded_params = json.loads(raw_params)
+    else:
+        raise ValueError("Unsupported type for parameters in mepap_sensor_params")
+
+    
+    return param_type, decoded_params
+
+def process_ecg_model(values):
+    param_type = "ECG_QRS_INFO"
+    
+    raw_analysis = values["analysis_data"]
+    if isinstance(raw_analysis, dict):
+        analysis = raw_analysis
+    elif isinstance(raw_analysis, bytes):
+        analysis = json.loads(raw_analysis.decode('utf-8'))
+    elif isinstance(raw_analysis, str):
+        analysis = json.loads(raw_analysis)
+    else:
+        raise ValueError("Unsupported type for analysis_data")
+    
+    raw_vitals = values["vitals_data"]
+    if isinstance(raw_vitals, dict):
+        vitals = raw_vitals
+    elif isinstance(raw_vitals, bytes):
+        vitals = json.loads(raw_vitals.decode('utf-8'))
+    elif isinstance(raw_vitals, str):
+        vitals = json.loads(raw_vitals)
+    else:
+        raise ValueError("Unsupported type for vitals_data")
+    
+    data = {
+        "analysis": analysis,
+        "vitals": vitals
+    }
+    
+    return param_type, data
+
+def process_photodiode(values):
+    param_type = "photodiode"
+    raw_params = values["parameters"]
+
+    
+    if isinstance(raw_params, dict):
+        params = raw_params
+    elif isinstance(raw_params, bytes):
+        params = json.loads(raw_params.decode('utf-8'))
+    elif isinstance(raw_params, str):
+        params = json.loads(raw_params)
+    else:
+        raise ValueError("Unsupported type for parameters in photodiode_params")
+    
+    return param_type, params
+
+def process_binlog_event(event):
+    if not isinstance(event, WriteRowsEvent):
+        return
+        
+    for row in event.rows:
+        try:
+            values = row["values"]
+            patient_id = values["patient_id"]
+            collection_time = values["collection_time"]
+            timestamp = collection_time.timestamp()
+            
+            handlers = {
+                "pressure_flow_params": process_pressure_flow,
+                "ecg_params": process_ecg,
+                "ella_sensor_params": process_ella_sensor,
+                "mepap_sensor_params": process_mepap_sensor,
+                "ecg_model_output": process_ecg_model,
+                "photodiode_params": process_photodiode
+            }
+            
+            if event.table in handlers:
+                param_type, data = handlers[event.table](values)
+                
+                data_cache.update_data(
+                    patient_id=patient_id,
+                    param_type=param_type,
+                    data=data,
+                    timestamp=timestamp
+                )
+                
+                send_data_manager.add_event(
+                    patient_id=patient_id,
+                    param_type=param_type,
+                    event_time=timestamp
+                )
+                
+                with active_params_lock:
+                    active_params[(patient_id, param_type)] = {
+                        "active": True,
+                        "last_update": timestamp
+                    }
+                    
+        except KeyError as e:
+            logger.error(f"Missing required field {str(e)} in {event.table} data")
+        except UnicodeDecodeError as e:
+            logger.error(f"Encoding error in {event.table}: {str(e)}")
+        except ValueError as e:
+            logger.error(f"Data conversion failed in {event.table}: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error processing {event.table}: {str(e)}")
+
 def binlog_listener():
     """
     Listen to the MySQL binary log events and process WriteRowsEvent events.
-    Depending on the table, decode the data, update the data cache, trigger send_data events,
-    and update the active parameters status.
     """
-    # Initialize the binlog stream reader with the connection settings and filters.
-
     stream = BinLogStreamReader(
         connection_settings={
             "host": settings.DB_HOST,
@@ -109,190 +313,9 @@ def binlog_listener():
         only_events=[WriteRowsEvent],
         blocking=True,
         resume_stream=True,
-
-
-        only_tables=["pressure_flow_params", "ecg_params", "ella_sensor_params", "ecg_model_output"]
+        only_tables=["pressure_flow_params", "ecg_params", "ella_sensor_params", 
+                     "mepap_sensor_params", "ecg_model_output", "photodiode_params"] 
     )
-
-
+    
     for event in stream:
-        if isinstance(event, WriteRowsEvent):
-            for row in event.rows:
-                try:
-
-                    values = row["values"]
-                    patient_id = values["patient_id"]
-                    collection_time = values["collection_time"]
-
-                    if event.table == "pressure_flow_params":
-                        param_type = "pressure_flow"
-                        raw_params = values["parameters"]
-
-                        decoded_params = {
-                            key.decode('utf-8'): {
-                                sub_key.decode('utf-8'): sub_val if not isinstance(sub_val, bytes)
-                                else sub_val.decode('utf-8')
-                                for sub_key, sub_val in value.items()
-                            }
-                            for key, value in raw_params.items()
-                        }
-                        
-                        # Convert the pressure and flow values from strings to floats.
-                        pressure_values = [float(v) for v in decoded_params["pressure"]["values"]]
-                        flow_values = [float(v) for v in decoded_params["flow"]["values"]]
-                        
-                        # Update the data cache with the pressure and flow data.
-
-                        data_cache.update_data(
-                            patient_id=patient_id,
-                            param_type=param_type,
-                            data={
-                                "pressure": {
-                                    "unit": decoded_params["pressure"]["unit"],
-                                    "values": pressure_values
-                                },
-                                "flow": {
-                                    "unit": decoded_params["flow"]["unit"],
-                                    "values": flow_values
-                                }
-                            },
-                            timestamp=collection_time.timestamp()
-                        )
-                        
-                        send_data_manager.add_event(
-                            patient_id=patient_id,
-                            param_type=param_type,
-                            event_time=collection_time.timestamp()
-                        )
-
-                    elif event.table == "ecg_params":
-                        param_type = "ECG"
-                        raw_params = values["parameters"]
-
-                        decoded_params = {
-                            key.decode('utf-8'): {
-                                sub_key.decode('utf-8'): sub_val if not isinstance(sub_val, bytes)
-                                else sub_val.decode('utf-8')
-                                for sub_key, sub_val in value.items()
-                            }
-                            for key, value in raw_params.items()
-                        }
-
-                        ecg_values        = [float(v) for v in decoded_params["ecg"]["values"]]
-                        emg_values        = [float(v) for v in decoded_params["emg"]["values"]]
-                        impedance_values  = [float(v) for v in decoded_params["impedance"]["values"]]
-                        eeg_values        = [float(v) for v in decoded_params["eeg"]["values"]]
-
-                        data_cache.update_data(
-                            patient_id=patient_id,
-                            param_type=param_type,
-                            data={
-                                "ecg": {
-                                    "unit": decoded_params["ecg"]["unit"],
-                                    "values": ecg_values
-                                },
-                                "emg": {
-                                    "unit":   decoded_params["emg"]["unit"],
-                                    "values": emg_values
-                                },
-                                "impedance": {
-                                    "unit":   decoded_params["impedance"]["unit"],
-                                    "values": impedance_values
-                                },
-                                "eeg": {
-                                    "unit":   decoded_params["eeg"]["unit"],
-                                    "values": eeg_values
-                                }
-                            },
-                            timestamp=collection_time.timestamp()
-                        )
-                        send_data_manager.add_event(
-                            patient_id=patient_id,
-                            param_type=param_type,
-                            event_time=collection_time.timestamp()
-                        )
-
-                    elif event.table == "ella_sensor_params":
-                        param_type = "breath_cycle"
-                        raw_params = values["parameters"]
-
-                        if isinstance(raw_params, dict):
-                            decoded_params = raw_params
-                        elif isinstance(raw_params, bytes):
-                            decoded_params = json.loads(raw_params.decode('utf-8'))
-                        elif isinstance(raw_params, str):
-                            decoded_params = json.loads(raw_params)
-                        else:
-                            raise ValueError("Unsupported type for parameters in ella_sensor_params")
-                        
-                        data_cache.update_data(
-                            patient_id=patient_id,
-                            param_type=param_type,
-                            data=decoded_params,
-                            timestamp=collection_time.timestamp()
-                        )
-
-                        send_data_manager.add_event(
-                            patient_id=patient_id,
-                            param_type=param_type,
-                            event_time=collection_time.timestamp()
-                        )
-
-
-
-                    elif event.table == "ecg_model_output":
-                        param_type = "ECG_QRS_INFO"
-
-                        # 解码 analysis_data
-                        raw_analysis = values["analysis_data"]
-                        if isinstance(raw_analysis, dict):
-                            analysis = raw_analysis
-                        elif isinstance(raw_analysis, bytes):
-                            analysis = json.loads(raw_analysis.decode('utf-8'))
-                        elif isinstance(raw_analysis, str):
-                            analysis = json.loads(raw_analysis)
-                        else:
-                            raise ValueError("Unsupported type for analysis_data")
-
-                        # 解码 vitals_data
-                        raw_vitals = values["vitals_data"]
-                        if isinstance(raw_vitals, dict):
-                            vitals = raw_vitals
-                        elif isinstance(raw_vitals, bytes):
-                            vitals = json.loads(raw_vitals.decode('utf-8'))
-                        elif isinstance(raw_vitals, str):
-                            vitals = json.loads(raw_vitals)
-                        else:
-                            raise ValueError("Unsupported type for vitals_data")
-
-                        data_cache.update_data(
-                            patient_id=patient_id,
-                            param_type=param_type,
-                            data={
-                                "analysis": analysis,
-                                "vitals": vitals
-                            },
-                            timestamp=collection_time.timestamp()
-                        )
-                        send_data_manager.add_event(
-                            patient_id=patient_id,
-                            param_type=param_type,
-                            event_time=collection_time.timestamp()
-                        )
-                        
-
-                    # 更新活跃参数状态
-                    with active_params_lock:
-                        active_params[(patient_id, param_type)] = {
-                            "active": True,
-                            "last_update": collection_time.timestamp()
-                        }
-                        
-                except KeyError as e:
-                    logger.error(f"Missing required field {str(e)} in binlog data")
-                except UnicodeDecodeError as e:
-                    logger.error(f"Encoding error: {str(e)}")
-                except ValueError as e:
-                    logger.error(f"Data conversion failed: {str(e)}")
-                except Exception as e:
-                    logger.error(f"Unexpected error: {str(e)}")
+        process_binlog_event(event)

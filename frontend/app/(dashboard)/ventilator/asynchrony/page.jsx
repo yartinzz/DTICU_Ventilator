@@ -15,7 +15,8 @@ import {
   Button
 } from '@mui/material';
 import ReactECharts from 'echarts-for-react';
-import { useTranslation } from '@/node_modules/react-i18next';
+import { useTranslation } from 'react-i18next';
+
 
 export default function AsynchronyPage() {
 

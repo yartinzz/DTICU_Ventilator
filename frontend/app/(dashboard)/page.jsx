@@ -28,7 +28,8 @@ import {
   DialogActions
 } from '@mui/material';
 import axios from 'axios';
-import { useTranslation } from '@/node_modules/react-i18next';
+import { useTranslation } from 'react-i18next';
+
 
 const API_BASE = 'http://132.181.62.177:10188';
 

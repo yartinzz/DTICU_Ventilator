@@ -1,7 +1,7 @@
 # Project Setup and Installation Guide
 
 
-### Update (May 22, 2025)
+### Update
 
 - Due to the limitation that the **MATLAB Engine** cannot be containerized, directly running the backend within a Docker container results in failure to invoke MATLAB-related services. 
 

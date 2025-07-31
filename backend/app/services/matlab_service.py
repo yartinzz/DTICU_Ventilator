@@ -58,12 +58,12 @@ def _sync_matlab_wrapper(pressure, flow, delta_peep):
         # Acquire a MATLAB engine from the pool with a timeout of 30 seconds.
         with ENGINE_POOL.get_engine(timeout=30) as engine:
             # Call the MATLAB function 'BreathAnalysisAdapter' with the provided parameters.
-            (P_predict_OD_all, V_predict_OD_all, OD_all, k2_all, Vfrc_all, MVpower_all, PEEP) = engine.BreathAnalysisAdapter(
+            (P_predict_OD_all, V_predict_OD_all, OD_all, k2_all, k2end_all, Cdyn_all, Vfrc_all, MVpower_all, PEEP) = engine.BreathAnalysisAdapter(
                 matlab.double(pressure),
                 matlab.double(flow),
                 settings.SAMPLING_RATE,
                 matlab.double(delta_peep),
-                nargout=7
+                nargout=9
             )
 
         # Convert MATLAB output to Python lists.
@@ -71,6 +71,8 @@ def _sync_matlab_wrapper(pressure, flow, delta_peep):
         V_predict_list = list(V_predict_OD_all)
         OD_list = list(OD_all)
         k2_list = list(k2_all)
+        k2end_list = list(k2end_all)
+        Cdyn_list = list(Cdyn_all)
         Vfrc_list = list(Vfrc_all)
         MVpower_list = list(MVpower_all)
 
@@ -94,6 +96,8 @@ def _sync_matlab_wrapper(pressure, flow, delta_peep):
                 "parameters": {
                     "OD": float(list(OD_list[i])[0]),
                     "K2": float(list(k2_list[i])[0]),
+                    "K2end": float(list(k2end_list[i])[0]),
+                    "Cdyn": float(list(Cdyn_list[i])[0]),
                     "Vfrc": float(list(Vfrc_list[i])[0]),
                     "MVpower": float(list(MVpower_list[i])[0]),
                 }

@@ -5,13 +5,15 @@ import {
   initPressureChart, 
   initFlowChart,
   updateChart,
+  initPVLoopChart,
+  updatePVLoopChart,
   initLineChart,
   updateParamChart,
   initHistoryPEEPChart,
   updateHistoryPEEPChart,
 } from "./echartsConfig";
 
-import { Select, MenuItem, InputLabel, FormControl } from '@mui/material';
+import { Select, MenuItem, InputLabel, FormControl, Slider } from '@mui/material';
 import { Typography, Box } from '@mui/material';
 import Paper from '@mui/material/Paper';
 import { debounce } from "lodash";
@@ -28,6 +30,16 @@ const DEFAULT_UPDATE_POINTS = CHART_UPDATE_INTERVAL_MS/POINT_INTERVAL_MS;
 
 //const WebSocketUrl = "ws://localhost:8000/ws";
 const WebSocketUrl = "ws://132.181.62.177:10188/ws";
+
+const marks = [
+  { value: -2, label: "-2" },
+  { value: 0, label: "0" },
+  { value: 2, label: "2" },
+  { value: 4, label: "4" },
+  { value: 6, label: "6" },
+  { value: 8, label: "8" },
+  { value: 10, label: "10" },
+];
 
 const PatientSelector = ({ patients, selectedPatient, onChange }) => {
   const { t } = useTranslation();
@@ -75,6 +87,7 @@ export default function HomePage() {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [ws, setWs] = useState(null);
   const [isBufferReady, setIsBufferReady] = useState(false);
+  const [deltaPEEP, setDeltaPEEP] = useState(2); 
   const [BestPEEP, setBestPEEP] = useState(0); 
   const [CurrentPEEP, setCurrentPEEP] = useState(0);
 
@@ -82,22 +95,19 @@ export default function HomePage() {
 
   const pressureChartRef = useRef(null);
   const flowChartRef = useRef(null);
+  const PVLoopchartRef = useRef(null);
   const workerRef = useRef(null);
 
   const historyPEEPContainerRef = useRef(null);
   const historyPEEPChartRef    = useRef(null);
 
-  // 更新参数图表名称，包含新的k2end和cdyn
-  const leftParamChartNames = ["OD", "MVpower"];
-  const rightParamChartNames = ["K2", "K2end", "Cdyn", "Vfrc"];
-  
-  const leftParamChartRefs = useRef(
-    leftParamChartNames.map(() => ({ current: null, chart: null }))
+
+
+  const paramChartNames = ["K2", "ODI", "MVpower", "Vfrc"];
+  const paramChartRefs = useRef(
+    paramChartNames.map(() => ({ current: null, chart: null }))
   );
-  
-  const rightParamChartRefs = useRef(
-    rightParamChartNames.map(() => ({ current: null, chart: null }))
-  );
+
 
   const [analysisResult, setAnalysisResult] = useState(null);
 
@@ -111,6 +121,7 @@ export default function HomePage() {
   );
 
   useEffect(() => {
+    PVLoopchartRef.current = initPVLoopChart(PVLoopchartRef);
     historyPEEPChartRef.current = initHistoryPEEPChart({
       current: historyPEEPContainerRef.current
     });
@@ -222,17 +233,10 @@ export default function HomePage() {
     const pressureChart = initPressureChart(pressureChartRef, timeData, pressureData);
     const flowChart = initFlowChart(flowChartRef, timeData, flowData);
 
-    // 初始化左侧参数图表 (OD, MVpower)
-    leftParamChartRefs.current.forEach((ref, index) => {
-      if (ref.current && !ref.chart) {
-        ref.chart = initLineChart(ref.current, leftParamChartNames[index]);
-      }
-    });
 
-    // 初始化右侧参数图表 (K2, K2end, Cdyn, Vfrc)
-    rightParamChartRefs.current.forEach((ref, index) => {
+    paramChartRefs.current.forEach((ref, index) => {
       if (ref.current && !ref.chart) {
-        ref.chart = initLineChart(ref.current, rightParamChartNames[index]);
+        ref.chart = initLineChart(ref.current, paramChartNames[index]);
       }
     });
 
@@ -241,13 +245,13 @@ export default function HomePage() {
       pressureChart.resize();
       flowChart.resize();
 
-      leftParamChartRefs.current.forEach((item) => {
+      paramChartRefs.current.forEach((item) => {
         if (item.chart) item.chart.resize();
       });
-
-      rightParamChartRefs.current.forEach((item) => {
-        if (item.chart) item.chart.resize();
-      });
+      
+      if (PVLoopchartRef.current) {
+        PVLoopchartRef.current.resize();
+      }
 
       if (historyPEEPChartRef.current) {
         historyPEEPChartRef.current.resize();
@@ -308,15 +312,14 @@ export default function HomePage() {
     return () => clearInterval(intervalId);
   }, [isBufferReady, ws]);
   
-  // 更新最佳PEEP计算函数，包含新的k2end和cdyn参数
-  const calculateBestPEEP = (k2, k2end, cdyn, od, vfrc, mvpower, deltaPEEPs, PEEP) => {
+  const calculateBestPEEP = (k2, od, vfrc, mvpower, deltaPEEPs, PEEP) => {
     if (od.length === 0 || vfrc.length < 2) return 0;
   
     let PEEP1 = 0;
     let minDiff = Infinity;
     let index1 = -1;
     od.forEach((value, i) => {
-      const diff = Math.abs(value - 0.5);
+      const diff = Math.abs(value - 0.8);
       if (diff < minDiff) {
         minDiff = diff;
         index1 = i;
@@ -341,6 +344,7 @@ export default function HomePage() {
   };
   
 
+
   const hasSentSnapshotRef = useRef(false);
 
   useEffect(() => {
@@ -351,16 +355,11 @@ export default function HomePage() {
         paramData["PEEP"] = item.PEEP;
       });
       setCurrentPEEP(paramData["PEEP"]);
-      
-      // 更新左侧参数图表 (OD, MVpower)
-      updateParamChart(leftParamChartNames, leftParamChartRefs, paramData);
-      // 更新右侧参数图表 (K2, K2end, Cdyn, Vfrc)
-      updateParamChart(rightParamChartNames, rightParamChartRefs, paramData);
+      updateParamChart(paramChartNames, paramChartRefs, paramData);
+
 
       const deltaPEEPs = [-2, 0, 2, 4, 6, 8, 10];
       const k2 = [];
-      const k2end = [];
-      const cdyn = [];
       const od = [];
       const vfrc = [];
       const mvpower = [];
@@ -369,23 +368,27 @@ export default function HomePage() {
         const data = paramData[key];
         if (data) {
           k2.push(data.K2);
-          k2end.push(data.K2end);
-          cdyn.push(data.Cdyn);
           od.push(data.OD);
           vfrc.push(data.Vfrc);
           mvpower.push(data.MVpower);
         }
       });
+  
+      const wave2 = analysisResult.find(item => item.deltaPEEP === deltaPEEP);
+      const baseline = analysisResult.find(item => item.deltaPEEP === "baseline");
 
-      // 更新最佳PEEP计算，包含新参数
-      const bestPEEP = calculateBestPEEP(k2, k2end, cdyn, od, vfrc, mvpower, deltaPEEPs , paramData["PEEP"]);
+      if (wave2 && baseline && isBufferReady) {
+        updatePVLoopChart(PVLoopchartRef.current, { waveforms: { "selected": wave2.waveforms, "baseline": baseline.waveforms }, deltaPEEP: deltaPEEP });
+      }
+
+      const bestPEEP = calculateBestPEEP(k2, od, vfrc, mvpower, deltaPEEPs , paramData["PEEP"]);
       setBestPEEP(bestPEEP);
-      
       // —— 新增：仅第一次发送快照 —— //
       if (!hasSentSnapshotRef.current) {
         const now = new Date();
         const avgCurrent = paramData["PEEP"];      // 当前计算出的 PEEP
         const avgRecommended = bestPEEP;           // 刚计算出的最佳 PEEP
+
 
         ws.send(JSON.stringify({
           action: 'store_peep_snapshot',
@@ -398,6 +401,8 @@ export default function HomePage() {
         // 标记：已发送过，不再重复
         hasSentSnapshotRef.current = true;
       }
+
+
     }
   }, [analysisResult]);
   
@@ -498,34 +503,44 @@ export default function HomePage() {
 
       pressureBuffer.current.fill(0);
       flowBuffer.current.fill(0);
+
     }
   };
 
-// 更新布局配置
+  const handleDeltaPEEPChange = (event, newValue) => {
+    setDeltaPEEP(newValue);
+    if (analysisResult) {
+      const selectedWave = analysisResult.find(item => item.deltaPEEP === newValue);
+      const baselineWave = analysisResult.find(item => item.deltaPEEP === "baseline");
+      if (selectedWave && baselineWave) {
+        updatePVLoopChart(PVLoopchartRef.current, { waveforms: { "selected": selectedWave.waveforms, "baseline": baselineWave.waveforms }, deltaPEEP: newValue });
+      } else {
+        console.warn("analysisResult=", analysisResult);
+      }
+    }
+  };
+  
+
 const layoutConfig = {
   left: [
-    { height: 60, component: PatientSelector, noPaper: true },
-    { height: 310, ref: pressureChartRef },
-    { height: 310, ref: flowChartRef },
+    { name: t("Patient Selector"), height: 80, component: PatientSelector, noPaper: true },
+    { height: 60, component: "CurrentPEEP"},
+    { height: 280, ref: pressureChartRef },
+    { height: 280, ref: flowChartRef },
   ],
   middle: [
-    { height: 60, component: "CurrentPEEP"},
-    // 将原PV-loop位置分配给OD和MVpower图表
-    ...leftParamChartNames.map((name, index) => ({
-      name,
-      height: 310,
-      ref: (el) => (leftParamChartRefs.current[index].current = el),
-    })),
-  ],
-  right: [
+    { name: "Delta PEEP", height: 80, component: "slider", noPaper: true },
     { height: 60, component: "bestPEEP"},
-    ...rightParamChartNames.map((name, index) => ({
-        name,
-        height: 230,
-        ref: (el) => (rightParamChartRefs.current[index].current = el),
-    })),
-    ]
+    { height: 560 + 32, ref: PVLoopchartRef },
+  ],
+  right: paramChartNames.map((name, index) => ({
+    name,
+    height: 181 +63,
+    ref: (el) => (paramChartRefs.current[index].current = el),
+  })),
 };
+
+
 
 const renderComponent = (item) => {
   // PatientSelector 保持不变
@@ -535,6 +550,27 @@ const renderComponent = (item) => {
         patients={patients}
         selectedPatient={selectedPatient}
         onChange={handlePatientChange}
+      />
+    );
+  }
+
+  if (item.component === "slider") {
+    return (
+      <Slider
+        value={deltaPEEP}
+        min={-2}
+        max={10}
+        step={2}
+        onChange={handleDeltaPEEPChange}
+        valueLabelDisplay="auto"
+        valueLabelFormat={(value) => value.toFixed(0)}
+        marks={marks}
+        sx={{
+          height: 4,
+          "& .MuiSlider-thumb": { height: 20, width: 20 },
+          "& .MuiSlider-track": { height: 6 },
+          "& .MuiSlider-rail": { height: 6 },
+        }}
       />
     );
   }
@@ -603,6 +639,7 @@ const renderComponent = (item) => {
   return <Box ref={item.ref} sx={{ width: "100%", height: "100%" }} />;
 };
 
+
   
 return (
   <Box
@@ -612,17 +649,18 @@ return (
       gap: 4,
       p: 4,
       height: "100vh",
-      width: "83vw",
+      width: "80vw",
     }}
   >
     {/* 左侧列 */}
     <Box
       sx={{
         display: "grid",
-        gridTemplateRows: "745px", // 上下两行
+        gridTemplateRows: "796px", // 上下两行
         gap: 4,
       }}
     >
+      {/* 上行：将原有左侧和中间区域放在2列中 */}
       <Box
         sx={{
           display: "grid",
@@ -646,7 +684,7 @@ return (
             )
           )}
         </Box>
-
+        {/* 原有中间内容 */}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {layoutConfig.middle.map((item, index) =>
             item.noPaper ? (
@@ -655,43 +693,33 @@ return (
                 {renderComponent(item)}
               </Box>
             ) : (
-                <Paper key={index} elevation={3} sx={{ height: item.height, p: 2, display: 'flex', flexDirection: 'column'}}>
-                    {item.name && <Typography variant="h6">{item.name}</Typography>}
-                    {renderComponent(item)}
-                </Paper>
+              <Paper key={index} elevation={3} sx={{ height: item.height, p: 2 }}>
+                {item.name && <Typography variant="h6">{item.name}</Typography>}
+                {renderComponent(item)}
+              </Paper>
             )
           )}
         </Box>
       </Box>
       {/* 下行：历史PEEP图表，整行展示 */}
       <Box>
-        <Paper elevation={3} sx={{ height: 331, p: 2 }}>
+        <Paper elevation={3} sx={{ height: 181 +63, p: 2 }}>
           <Box ref={historyPEEPContainerRef} sx={{ width: "100%", height: "100%" }} />
         </Paper>
       </Box>
     </Box>
 
-    {/* 右侧列：K2, K2end, Cdyn, Vfrc 四个参数图表 */}
+    {/* 右侧列：原有的参数图表 */}
     <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
       {layoutConfig.right.map((item, index) => (
-        <Paper 
-            key={index}
-            elevation={3}
-            sx={{ 
-                height: item.height,
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column'
-            }}
-            >
-            <Typography variant="h6">{item.name}</Typography>
-            <Box sx={{ flex: 1, minHeight: 0 }}>
-                {renderComponent(item)}
-            </Box>
+        <Paper key={index} elevation={3} sx={{ height: item.height, p: 2 }}>
+          <Typography variant="h6">{item.name}</Typography>
+          {renderComponent(item)}
         </Paper>
       ))}
     </Box>
   </Box>
 );
+
 
 }

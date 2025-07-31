@@ -33,7 +33,8 @@ import {
 import PersonIcon from '@mui/icons-material/Person';
 import InfoIcon from '@mui/icons-material/Info';
 import { debounce } from "lodash";
-import { useTranslation } from "@/node_modules/react-i18next/index.js";
+import { useTranslation } from 'react-i18next';
+
 
 // --- Constants ---
 const DEFAULT_UPDATE_POINTS = 10;

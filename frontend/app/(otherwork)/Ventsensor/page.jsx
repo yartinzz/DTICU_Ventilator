@@ -139,7 +139,7 @@ export default function BreathCyclePage() {
   useEffect(() => {
     const socket = new WebSocket(WEBSOCKET_URL);
     socket.onopen = () => {
-      console.log("[INFO] WebSocket 连接成功");
+      console.log("[INFO] WebSocket connected");
       setWs(socket);
       // 请求病人列表
       socket.send(JSON.stringify({ action: "get_patients" }));
@@ -164,7 +164,7 @@ export default function BreathCyclePage() {
       }
     };
     socket.onclose = () => {
-      console.log("[INFO] WebSocket 连接断开");
+      console.log("[INFO] WebSocket disconnected");
       setWs(null);
     };
     return () => {

@@ -11,8 +11,18 @@ const NEW_PAGE_NAVIGATION = [
     title: 'Main items',
   },
   {
-    segment: 'sensorpage',
-    title: 'Sensor Page',
+    segment: 'Ventsensor',
+    title: 'Pressure Sensor Page',
+    icon: <DashboardIcon />,
+  },
+  {
+    segment: 'PDsensor',
+    title: 'Pleth Page',
+    icon: <DashboardIcon />,
+  },
+  {
+    segment: 'MePAPsensor',
+    title: 'MePAP Page',
     icon: <DashboardIcon />,
   },
 ];
